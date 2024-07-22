@@ -1,0 +1,18 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: my-trigger
+  namespace: default
+spec:
+  broker: default  #
+  filter:
+    attributes:
+      type: your-event-type
+  subscriber:
+    #uri: http://10.244.2.9:8080
+    ref:  # 指定事件的接收者
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: isosh
+  delivery:
+    retry: 0
