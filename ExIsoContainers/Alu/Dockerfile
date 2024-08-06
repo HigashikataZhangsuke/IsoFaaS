@@ -12,3 +12,4 @@ RUN pip install redis
 
 # 运行 Python 脚本时的命令
 CMD ["python", "./IsoContainerExProcess.py"]
+

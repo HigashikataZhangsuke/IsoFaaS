@@ -1,3 +1,4 @@
+
 #The Exclusive IsoContainer Impl
 #Since MBA and CAT can directly be applied, no need for stall so just like tunning CPU masks.
 #So here's how we would like to solve this problem, we first will use Redis's pub-sub model to let the controller
@@ -198,4 +199,3 @@ if __name__ == '__main__':
     L.start()
     #Join will only finish when you shutdown the container.
     L.join()
-

@@ -58,4 +58,3 @@ if __name__ == "__main__":
     L = threading.Thread(target=Listener, args=(counter,RedisMessageClient,))
     L.start()
     app.run(host='0.0.0.0', port=12346)
-
