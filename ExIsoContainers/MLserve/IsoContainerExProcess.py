@@ -21,6 +21,12 @@ import torch
 from torchvision import models, transforms
 from PIL import Image
 #Class
+torch.set_num_threads(1)
+
+# 限制 MKL 和 OpenMP 使用的线程数
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
 class ControlSign:
     def __init__(self):
         self.local_sign = True
@@ -95,6 +101,12 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId):
     #You could modify scale here
     #Assuming Data has SLO also.
     os.sched_setaffinity(0, {AffinityId})
+    torch.set_num_threads(1)
+
+    # 限制 MKL 和 OpenMP 使用的线程数
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['NUMEXPR_NUM_THREADS'] = '1'
     # Do everything locally and then aggregation.
     # You need to tell the TP and your execution latency to us.
     # For TP, we keep the local print way. This could at least save 5% Peak Throughput.
