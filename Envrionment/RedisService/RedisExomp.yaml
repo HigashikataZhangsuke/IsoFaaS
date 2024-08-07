@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redisompdt
+spec:
+  selector:
+    matchLabels:
+      app: redisomp
+  template:
+    metadata:
+      labels:
+        app: redisomp
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: vm
+                operator: In
+                values:
+                - Romp  # 假设VMA是目标节点的标签

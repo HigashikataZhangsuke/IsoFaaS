@@ -1,0 +1,28 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redismltdt
+spec:
+  selector:
+    matchLabels:
+      app: redismlt
+  template:
+    metadata:
+      labels:
+        app: redismlt
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: vm
+                operator: In
+                values:
+                - Rmlt  # Assume VM tag is target node label

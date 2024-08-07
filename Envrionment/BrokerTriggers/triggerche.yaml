@@ -1,0 +1,18 @@
+
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: chetrigger
+  namespace: default
+spec:
+  broker: default
+  filter:
+    attributes:
+      type: chemsg
+  subscriber:
+    ref: 
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: isoche
+  delivery:
+    retry: 0

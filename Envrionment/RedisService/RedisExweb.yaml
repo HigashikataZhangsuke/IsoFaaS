@@ -1,0 +1,28 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rediswebdt
+spec:
+  selector:
+    matchLabels:
+      app: redisweb
+  template:
+    metadata:
+      labels:
+        app: redisweb
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: vm
+                operator: In
+                values:
+                - Rweb  # Assume VM tag is target node label

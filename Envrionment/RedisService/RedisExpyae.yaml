@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redispyaedt
+spec:
+  selector:
+    matchLabels:
+      app: redispyae
+  template:
+    metadata:
+      labels:
+        app: redispyae
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: vm
+                operator: In
+                values:
+                - Rpyae  # 假设VMA是目标节点的标签

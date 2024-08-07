@@ -1,0 +1,18 @@
+
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: vidtrigger
+  namespace: default
+spec:
+  broker: default
+  filter:
+    attributes:
+      type: vidmsg
+  subscriber:
+    ref: 
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: isovid
+  delivery:
+    retry: 0

@@ -1,0 +1,18 @@
+
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: webtrigger
+  namespace: default
+spec:
+  broker: default
+  filter:
+    attributes:
+      type: webmsg
+  subscriber:
+    ref: 
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: isoweb
+  delivery:
+    retry: 0

@@ -1,0 +1,32 @@
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: isomlt
+  namespace: default
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+    spec:
+      containers:
+        - name: flmls
+          image: yzzhangllm/flaskmlt:latest
+          ports:
+            - containerPort: 12346
+
+        - name : mls
+          image: yzzhangllm/mltex:latest
+
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: vm
+                    operator: In
+                    values:
+                      - MT  
+

@@ -1,0 +1,18 @@
+
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: omptrigger
+  namespace: default
+spec:
+  broker: default
+  filter:
+    attributes:
+      type: ompmsg
+  subscriber:
+    ref: 
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: isoomp
+  delivery:
+    retry: 0

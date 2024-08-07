@@ -1,0 +1,28 @@
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: isoshare
+  namespace: default
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+    spec:
+      containers:
+
+        - name : share
+          image: yzzhangllm/share:latest
+
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: vm
+                    operator: In
+                    values:
+                      - MT  
+

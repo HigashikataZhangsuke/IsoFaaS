@@ -1,0 +1,18 @@
+
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: rottrigger
+  namespace: default
+spec:
+  broker: default
+  filter:
+    attributes:
+      type: rotmsg
+  subscriber:
+    ref: 
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: isorot
+  delivery:
+    retry: 0
