@@ -82,11 +82,14 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId):
     while Signal.local_sign:
         result = RedisDataClient.blpop(FuncName, 5)
         if result:
+            _, data = json.loads(result)
+            arrtime = data['ArrivalTime']
             st = time.time()
             result = pyae()
             et = time.time()
             Totalcnt += 1
-            logger.info(f"P+ {os.getpid()}+ process request number + {Totalcnt} + starts at + {st} + end at {et} + duration {et-st}")
+            logger.info(
+                f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
             #print(Totalcnt,flush=True)
 #The controller to tune worker and resource
 def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProcessesDict):
