@@ -24,13 +24,14 @@ import Applymba
 import Boundcomp
 import Shmanage
 import logging
+import random
 def setup_logging(process_id):
     # 设置日志格式
     # Later just need to use the kubectl cp to get them.
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     currtime = time.time()
     # 创建一个日志处理器，将日志输出到文件. Add time since there is a possibility that the process with same ID spawns.
-    log_filename = f'aluprocess_{process_id}+{currtime}.log'
+    log_filename = f'invokerprocess_{process_id}+{currtime}.log'
     file_handler = logging.FileHandler(log_filename)
     file_handler.setFormatter(formatter)
     # 创建一个日志记录器
@@ -48,22 +49,19 @@ class LListenerSign:
         self.local_sign = True
 #Updating/Sh globlo policy maker are all background tasks.
 
-def updator(ID,AliveList,LeftedResource,RedisPublishCannel,UsedResource):
-    #also write resource usage here()
-    Data = {
-        "ID":ID,
-        "AliveList":copy.deepcopy(AliveList),
-        "LeftedResource":LeftedResource,
-        "UsedResource": UsedResource
-    }
-    RedisPublishCannel.publish('Scheduler',json.dumps(Data))
-    RedisPublishCannel.publish('GC', json.dumps(Data))
-    #You also need to update your Function's usage here.
-    time.sleep(5)
-
-def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,Redisflaskclient):
+def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,Redisflaskclient,RedisExclient,loghld):
     pubsub = RedisClusterRateClient.pubsub()
     pubsub.subscribe('RateChannel')
+    #Init related parts:
+    for i in range(23):
+        AllCPUList.append(1)
+    FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
+    for func in FuncList:
+        ArrivalRateDict[func] = 0
+        CurrMaskDict[func] = [0]*23
+        Bound[func] = 23
+        Clusterpolicy[func] = "KeepOrGC"
+
     while True:
         #everytime, you received the new rate dict for the global part, you need to do another round of profiling and get new mask
         messagelist = pubsub.listen()
@@ -78,75 +76,45 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                         #Only deal with ID align our.when init, we send the ID to the cluster at first.
                         #Just do the new mask assign all the time? should so. only do this for functions with rate changed.
                         NewArrDict = RateDict[ID]
+                        loghld.info(f"This interval ends at {time.time()} and with Mask {CurrMaskDict}")
                         for func in NewArrDict:
                             #Only change when have significant difference.
                             if NewArrDict[func] > 1.2*ArrivalRateDict[func]:
                                 Exmanage.GetNewMask(CurrMaskDict,func,"ScaleUp",AllCPUList,NewArrDict,ProfilingDataTp,ProflingDataConsum,Bound,Clusterpolicy)
+
                             elif NewArrDict[func] < 0.8*ArrivalRateDict[func]:
                                 Exmanage.GetNewMask(CurrMaskDict, func, "ScaleDown", AllCPUList, NewArrDict,ProfilingDataTp, ProflingDataConsum, Bound, Clusterpolicy)
                             else:
                                 pass
                             ArrivalRateDict[func] = NewArrDict[func]
+                        normal_dict = copy.deepcopy(CurrMaskDict)
+                        RedisExclient.publish('UpdateChannel',json.dumps(normal_dict))
                         Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
                         Applymba.DynamicLinkcore(CurrMaskDict)
                         Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,Redisflaskclient)
         pubsub.close()
 
-
 if __name__ == '__main__':
-    #Think about init here.
-    import redis
-
-    # 假设集群节点的一个可达IP是192.168.1.100，NodePort是30007
-    # 用节点IP+服务IP。这里你应该先创建他们，然后再invoker里面去查看和连接。但是这个确定能做了。
-    redis_host = '172.31.16.166'  # 替换为实际的节点IP
-    redis_port = 31849  # NodePort
-
-    r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
-
-    # 测试连接
-    r.set('test', 'hello')
-    print(r.get('test'))
-
-    ProfilingDataTp
-    ProflingDataConsum
-    ProfilingLatency
-    TotalResource
-
-    RedisClusterSvc = redis.Redis(host='clustersvc.default.svc.cluster.local', port=6379,decode_responses=True)
-    RedisClusterMetricSvc = redis.Redis(host='clustersvc.default.svc.cluster.local',db=1, port=6379,decode_responses=True)
-    RedisMessageClientSh = redis.Redis(host='invokershmessagesvc.default.svc.cluster.local', port=6379,decode_responses=True)
-    RedisMessageClientEx = redis.Redis(host='invokermessagesvc.default.svc.cluster.local', port=6379,decode_responses=True)
-    RedisMetricClient = redis.Redis(host='invokermetricsservice.default.svc.cluster.local', port=6379, db=0,decode_responses=True)
-    RedisPublishChannel = redis.Redis(host='clusterchn.default.svc.cluster.local', port=6379,decode_responses=True)
+    AffinityId = random.randint(24, 47)
+    os.sched_setaffinity(0, {AffinityId})
+    ProfilingDataTp = {}
+    ProflingDataConsum = {}
+    ProfilingLatency = {}
+    #This will be the same
+    redis_host = ''  # 替换为实际的节点IP,after starting all node and services.
+    RedisClusterRateClient = redis.Redis(host=redis_host, port=,decode_responses=True)
+    Redisflaskclient = redis.Redis(host=redis_host, port=,decode_responses=True)
+    RedisMessageClient = redis.Redis(host=redis_host, port=,decode_responses=True)
     #Init variables and then Start The thread and the subprocess.
-    ListenerSign = LListenerSign()
     manager = mp.Manager()
-    AliveList = manager.list()
     CurrMaskDict = manager.dict()
     ID = uuid.uuid4()
     #A dict, stores the resource allocation results for alive functions in this node.
-    ResourceAllocation = manager.dict()
     AllCPUList = manager.list()
     Bound = manager.dict()
-    #How to init these mapping lists is a problem. Also need a dict here.
-    FunctionLLCMapping = manager.list()
-    FunctionMBAMapping = manager.list()
+    Clusterpolicy = manager.dict()
     ArrivalRateDict = manager.dict()
-    LeftedResource = manager.dict()
-    for i in range(23):
-        AllCPUList.append(1)
-    ngp = mp.Process(target=Glistener, args=(RedisClusterSvc,RedisClusterMetricSvc,
-                                             RedisMessageClientEx,ListenerSign,AliveList,ID,ResourceAllocation,
-                                             CurrMaskDict,AllCPUList,FunctionLLCMapping,FunctionMBAMapping,ArrivalRateDict,Bound,LeftedResource,))
-
-    nlp = mp.Process(target=LListener,args = (ListenerSign,RedisMetricClient,ResourceAllocation,ArrivalRateDict,CurrMaskDict,
-                                              FunctionLLCMapping,FunctionMBAMapping,AllCPUList,Bound,LeftedResource,))
-
-    nup = mp.Process(target=updator,args=(ID,AliveList,LeftedResource,RedisPublishChannel,))
-    ngp.start()
+    Loghld = setup_logging(os.getpid())
+    nlp = mp.Process(target=LListener,args = (RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,Redisflaskclient,RedisMessageClient,Loghld,))
     nlp.start()
-    nup.start()
-    ngp.join()
     nlp.join()
-    nup.join()
