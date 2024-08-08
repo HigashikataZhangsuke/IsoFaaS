@@ -54,7 +54,7 @@ def setup_logging(process_id):
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     currtime = time.time()
     # 创建一个日志处理器，将日志输出到文件. Add time since there is a possibility that the process with same ID spawns.
-    log_filename = f'aluprocess_{process_id}+{currtime}.log'
+    log_filename = f'Shprocess_{process_id}+{currtime}.log'
     file_handler = logging.FileHandler(log_filename)
     file_handler.setFormatter(formatter)
     # 创建一个日志记录器
