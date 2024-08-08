@@ -46,7 +46,7 @@ class LListenerSign:
         self.local_sign = False
     def signstart(self):
         self.local_sign = True
-
+#Updating/Sh globlo policy maker are all background tasks.
 
 def updator(ID,AliveList,LeftedResource,RedisPublishCannel,UsedResource):
     #also write resource usage here()
@@ -61,7 +61,7 @@ def updator(ID,AliveList,LeftedResource,RedisPublishCannel,UsedResource):
     #You also need to update your Function's usage here.
     time.sleep(5)
 
-def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum):
+def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,Redisflaskclient):
     pubsub = RedisClusterRateClient.pubsub()
     pubsub.subscribe('RateChannel')
     while True:
@@ -89,10 +89,12 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                             ArrivalRateDict[func] = NewArrDict[func]
                         Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
                         Applymba.DynamicLinkcore(CurrMaskDict)
+                        Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,Redisflaskclient)
         pubsub.close()
 
 
 if __name__ == '__main__':
+    #Think about init here.
     import redis
 
     # 假设集群节点的一个可达IP是192.168.1.100，NodePort是30007
