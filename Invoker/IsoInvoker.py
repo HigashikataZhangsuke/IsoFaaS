@@ -101,7 +101,7 @@ if __name__ == '__main__':
     ProflingDataConsum = {}
     ProfilingLatency = {}
     #This will be the same
-    redis_host = ''  # 替换为实际的节点IP,after starting all node and services.
+    redis_host = '172.31.22.224'  # 替换为实际的节点IP,after starting all node and services.
     RedisClusterRateClient = redis.Redis(host=redis_host, port=,decode_responses=True)
     Redisflaskclient = redis.Redis(host=redis_host, port=,decode_responses=True)
     RedisMessageClient = redis.Redis(host=redis_host, port=,decode_responses=True)
