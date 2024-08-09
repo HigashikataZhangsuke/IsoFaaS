@@ -49,7 +49,7 @@ class LListenerSign:
         self.local_sign = True
 #Updating/Sh globlo policy maker are all background tasks.
 
-def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,Redisflaskclient,RedisExclient,loghld):
+def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,RedisMessageClient,loghld):
     pubsub = RedisClusterRateClient.pubsub()
     pubsub.subscribe('RateChannel')
     #Init related parts:
@@ -61,11 +61,11 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
         CurrMaskDict[func] = [0]*23
         Bound[func] = 23
         Clusterpolicy[func] = "KeepOrGC"
-
     while True:
         #everytime, you received the new rate dict for the global part, you need to do another round of profiling and get new mask
         messagelist = pubsub.listen()
         if messagelist:
+
             # You got a message
             for message in messagelist:
                 if message['type'] == 'message':
@@ -81,17 +81,16 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                             #Only change when have significant difference.
                             if NewArrDict[func] > 1.2*ArrivalRateDict[func]:
                                 Exmanage.GetNewMask(CurrMaskDict,func,"ScaleUp",AllCPUList,NewArrDict,ProfilingDataTp,ProflingDataConsum,Bound,Clusterpolicy)
-
                             elif NewArrDict[func] < 0.8*ArrivalRateDict[func]:
                                 Exmanage.GetNewMask(CurrMaskDict, func, "ScaleDown", AllCPUList, NewArrDict,ProfilingDataTp, ProflingDataConsum, Bound, Clusterpolicy)
                             else:
                                 pass
                             ArrivalRateDict[func] = NewArrDict[func]
                         normal_dict = copy.deepcopy(CurrMaskDict)
-                        RedisExclient.publish('UpdateChannel',json.dumps(normal_dict))
+                        RedisMessageClient.publish('UpdateChannel',json.dumps(normal_dict))
                         Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
                         Applymba.DynamicLinkcore(CurrMaskDict)
-                        Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,Redisflaskclient)
+                        Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient)
         pubsub.close()
 
 if __name__ == '__main__':
@@ -102,9 +101,8 @@ if __name__ == '__main__':
     ProfilingLatency = {}
     #This will be the same
     redis_host = '172.31.22.224'  # 替换为实际的节点IP,after starting all node and services.
-    RedisClusterRateClient = redis.Redis(host=redis_host, port=,decode_responses=True)
-    Redisflaskclient = redis.Redis(host=redis_host, port=,decode_responses=True)
-    RedisMessageClient = redis.Redis(host=redis_host, port=,decode_responses=True)
+    RedisClusterRateClient = redis.Redis(host=redis_host, port=32526,decode_responses=True)
+    RedisMessageClient = redis.Redis(host=redis_host, port=30527,decode_responses=True)
     #Init variables and then Start The thread and the subprocess.
     manager = mp.Manager()
     CurrMaskDict = manager.dict()
@@ -115,6 +113,6 @@ if __name__ == '__main__':
     Clusterpolicy = manager.dict()
     ArrivalRateDict = manager.dict()
     Loghld = setup_logging(os.getpid())
-    nlp = mp.Process(target=LListener,args = (RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,Redisflaskclient,RedisMessageClient,Loghld,))
+    nlp = mp.Process(target=LListener,args = (RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,ID,Bound,Clusterpolicy,ProfilingDataTp,ProflingDataConsum,RedisMessageClient,Loghld,))
     nlp.start()
     nlp.join()

@@ -48,7 +48,7 @@ if __name__ == '__main__':
     processes = []
     #interval = 2000  # Assume this is some meaningful interval
     # Sample request times for demonstration, in real scenario replace with actual times
-    function_times = [time.time() + i for i in range(0, 200, 20)]
+    function_times = [time.time() + i for i in range(0, 20, 20)]
     for i in range(6):
         p = Process(target=run_in_process, args=(function_times,))
         processes.append(p)
