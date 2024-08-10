@@ -1,4 +1,7 @@
 #!/bin/bash
+
+
+
 echo "Applying Broker"
 kubectl apply -f /home/ubuntu/Envrionment/BrokerTriggers/broker.yaml
 sleep 2
