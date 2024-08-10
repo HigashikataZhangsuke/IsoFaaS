@@ -3,12 +3,12 @@ import uuid
 import asyncio
 from multiprocessing import Process
 import aiohttp
-
+import numpy as np
 # 有多少个model就define多少个send。
 broker_url = "http://broker-ingress.knative-eventing.svc.cluster.local/default/default"
 
-function_list = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-
+#function_list = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
+function_list = ["alu"]
 async def fetch(session, url, json_data, headers):
     async with session.post(url, json=json_data, headers=headers) as response:
         return await response.text()
@@ -44,13 +44,30 @@ async def run_async_tasks(function_times):
 def run_in_process(function_times):
     asyncio.run(run_async_tasks(function_times))
 
+def generate_poisson_arrival_times(rate, duration):
+    np.random.seed(100)  # 设置随机种子以保持结果的一致性
+    times = []
+    current_time = 0
+    while current_time < duration:
+            # 生成下一个事件的时间间隔
+        interval = np.random.exponential(1 / rate)
+        current_time += interval
+        if current_time < duration:
+            times.append(current_time)
+    return times
+
 if __name__ == '__main__':
+    load = 400  # 事件/秒
+    duration = 20  # 持续时间为20秒
+    # 函数用于生成符合泊松过程的事件到达时间
+    function_times = generate_poisson_arrival_times(load, duration)
     processes = []
     #interval = 2000  # Assume this is some meaningful interval
     # Sample request times for demonstration, in real scenario replace with actual times
-    function_times = [time.time() + i for i in range(0, 20, 20)]
-    for i in range(6):
-        p = Process(target=run_in_process, args=(function_times,))
+    start_time = time.time()
+    abs_times = [start_time + t for t in function_times]
+    for i in range(1):
+        p = Process(target=run_in_process, args=(abs_times,))
         processes.append(p)
         p.start()
 

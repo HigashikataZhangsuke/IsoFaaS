@@ -55,7 +55,8 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
     #Init related parts:
     for i in range(23):
         AllCPUList.append(1)
-    FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
+    #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
+    FuncList = ["alu"]
     for func in FuncList:
         ArrivalRateDict[func] = 0
         CurrMaskDict[func] = [0]*23
@@ -65,7 +66,6 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
         #everytime, you received the new rate dict for the global part, you need to do another round of profiling and get new mask
         messagelist = pubsub.listen()
         if messagelist:
-
             # You got a message
             for message in messagelist:
                 if message['type'] == 'message':
@@ -79,9 +79,10 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                         loghld.info(f"This interval ends at {time.time()} and with Mask {CurrMaskDict}")
                         for func in NewArrDict:
                             #Only change when have significant difference.
-                            if NewArrDict[func] > 1.2*ArrivalRateDict[func]:
+                            #Here not correct. should change if level change.
+                            if NewArrDict[func] > ProfilingDataTp[sum(CurrMaskDict[func])]:
                                 Exmanage.GetNewMask(CurrMaskDict,func,"ScaleUp",AllCPUList,NewArrDict,ProfilingDataTp,ProflingDataConsum,Bound,Clusterpolicy)
-                            elif NewArrDict[func] < 0.8*ArrivalRateDict[func]:
+                            elif NewArrDict[func] < ProfilingDataTp[sum(CurrMaskDict[func])]:
                                 Exmanage.GetNewMask(CurrMaskDict, func, "ScaleDown", AllCPUList, NewArrDict,ProfilingDataTp, ProflingDataConsum, Bound, Clusterpolicy)
                             else:
                                 pass
@@ -96,9 +97,9 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
 if __name__ == '__main__':
     AffinityId = random.randint(24, 47)
     os.sched_setaffinity(0, {AffinityId})
-    ProfilingDataTp = {}
-    ProflingDataConsum = {}
-    ProfilingLatency = {}
+    ProfilingDataTp = {'alu':[0,91.955, 177.1163, 262.2776, 347.4389, 432.6002, 517.7615, 602.9227999999999, 688.0840999999999, 773.2453999999999, 858.4066999999999, 943.5679999999999, 1028.7293, 1113.8906, 1199.0519, 1284.2132, 1369.3745, 1454.5357999999999, 1539.6970999999999, 1624.8583999999998, 1710.0196999999998, 1795.1809999999998, 1880.3422999999998]}
+    ProflingDataConsum = {'alu':[1,461,200,1]}
+    ProfilingLatency = {'alu':0.0108,}
     #This will be the same
     redis_host = '172.31.22.224'  # 替换为实际的节点IP,after starting all node and services.
     RedisClusterRateClient = redis.Redis(host=redis_host, port=32526,decode_responses=True)
