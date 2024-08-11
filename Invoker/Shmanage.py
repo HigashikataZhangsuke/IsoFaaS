@@ -11,7 +11,7 @@ def sendratio(ArrivalRate,ProfilingDataTp,CurrMask,Redisflaskclient):
         if Ratio[FuncName]>1:
             #Since above 0.5 we give one more core
             Ratio[FuncName] = 1
-    Redisflaskclient.publish('RatioChannel',json.dumps(Ratio))
+    Redisflaskclient.publish(['RatioChannel'],json.dumps(Ratio))
 
 #The second task is to collect sh's data, and do analysis.
 def policymaker(Redisshmsgclient,ProfilingLatency,Clusterpolicy):

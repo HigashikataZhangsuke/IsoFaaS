@@ -43,11 +43,11 @@ app = Flask(__name__)
 @app.route('/', methods=['POST'])
 def receive_event():
     data = request.get_json()
-    #if random.random() > counter.value:
-    #    RedisShDataClient.rpush('ShChannel', json.dumps(data))
-    #else:
+    if random.random() > counter.value:
+        RedisShDataClient.rpush('ShChannel', json.dumps(data))
+    else:
         #PUt to Ex
-    RedisDataClient.rpush(FuncName, json.dumps(data))
+        RedisDataClient.rpush(FuncName, json.dumps(data))
     return 'OK', 200
 
 if __name__ == "__main__":

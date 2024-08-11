@@ -108,8 +108,10 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                     normal_dict = copy.deepcopy(CurrMaskDict)
                     print("Now "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
                     RedisMessageClient.publish('UpdateChannel',json.dumps(normal_dict))
-                    #Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
-                    #Applymba.DynamicLinkcore(CurrMaskDict)
+                    if "omp" in FuncList or "vid" in FuncList or "rot" in FuncList or "mls" in FuncList or "mlt" in FuncList:
+                        #Add function check to these two function later.
+                        Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
+                        Applymba.DynamicLinkcore(CurrMaskDict)
                     Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient)
         pubsub.close()
 
