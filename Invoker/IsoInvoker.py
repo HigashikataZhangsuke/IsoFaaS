@@ -55,43 +55,62 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
     #Init related parts:
     for i in range(23):
         AllCPUList.append(1)
+    AllCPUList[6] = 0
     #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
     FuncList = ["alu"]
     for func in FuncList:
-        ArrivalRateDict[func] = 0
+        #ArrivalRateDict[func] = 0.00
         CurrMaskDict[func] = [0]*23
+        templist = CurrMaskDict[func]
+        templist[6] = 1
+        CurrMaskDict[func] = templist
         Bound[func] = 23
         Clusterpolicy[func] = "KeepOrGC"
+        print("start "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
+    NewArrDict = {}
     while True:
         #everytime, you received the new rate dict for the global part, you need to do another round of profiling and get new mask
         messagelist = pubsub.listen()
         if messagelist:
             # You got a message
+            #print("got msg",flush=True)
             for message in messagelist:
                 if message['type'] == 'message':
                     # You got a message passing data
-                    RateDict = json.loads(message['data'])
+                    #print(message, flush=True)
+                    #RateDict = json.loads(message['data'])
+                    Rate = float(message['data'])
+                    #print("Rate is " + str(Rate),flush = True)
+                    #NewArrDict = copy.deepcopy(ArrivalRateDict)
+                    NewArrDict['alu'] = Rate
+                    #print(NewArrDict)
                     # For the shutdown message, we simply set the CPUMASK to all zero(If we still keep the container alive could live later, Currently shut down)
-                    if ID in RateDict:
+                    #if ID in RateDict:
                         #Only deal with ID align our.when init, we send the ID to the cluster at first.
                         #Just do the new mask assign all the time? should so. only do this for functions with rate changed.
-                        NewArrDict = RateDict[ID]
-                        loghld.info(f"This interval ends at {time.time()} and with Mask {CurrMaskDict}")
-                        for func in NewArrDict:
-                            #Only change when have significant difference.
+                    #    NewArrDict = RateDict[ID]
+                    #    loghld.info(f"This interval ends at {time.time()} and with Mask {CurrMaskDict}")
+                    for func in NewArrDict:
+                        #print(NewArrDict[func],flush=True)
+                        #print(ProfilingDataTp[func][sum(CurrMaskDict[func])],flush=True)
+                    #        #Only change when have significant difference.
                             #Here not correct. should change if level change.
-                            if NewArrDict[func] > ProfilingDataTp[sum(CurrMaskDict[func])]:
-                                Exmanage.GetNewMask(CurrMaskDict,func,"ScaleUp",AllCPUList,NewArrDict,ProfilingDataTp,ProflingDataConsum,Bound,Clusterpolicy)
-                            elif NewArrDict[func] < ProfilingDataTp[sum(CurrMaskDict[func])]:
-                                Exmanage.GetNewMask(CurrMaskDict, func, "ScaleDown", AllCPUList, NewArrDict,ProfilingDataTp, ProflingDataConsum, Bound, Clusterpolicy)
-                            else:
-                                pass
-                            ArrivalRateDict[func] = NewArrDict[func]
-                        normal_dict = copy.deepcopy(CurrMaskDict)
-                        RedisMessageClient.publish('UpdateChannel',json.dumps(normal_dict))
-                        Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
-                        Applymba.DynamicLinkcore(CurrMaskDict)
-                        Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient)
+                        loghld.info(f"This interval ends at {time.time()} and with Mask {CurrMaskDict}")
+                        if NewArrDict[func] > ProfilingDataTp[func][sum(CurrMaskDict[func])]:
+                            #print("trigger up",flush = True)
+                            Exmanage.GetNewMask(CurrMaskDict,func,"ScaleUp",AllCPUList,NewArrDict,ProfilingDataTp,ProflingDataConsum,Bound,Clusterpolicy)
+                        elif NewArrDict[func] < ProfilingDataTp[func][sum(CurrMaskDict[func])]:
+                            #print("trigger down", flush=True)
+                            Exmanage.GetNewMask(CurrMaskDict, func, "ScaleDown", AllCPUList, NewArrDict,ProfilingDataTp, ProflingDataConsum, Bound, Clusterpolicy)
+                        else:
+                            pass
+                    #ArrivalRateDict['alu'] = NewArrDict['alu']
+                    normal_dict = copy.deepcopy(CurrMaskDict)
+                    print("Now "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
+                    RedisMessageClient.publish('UpdateChannel',json.dumps(normal_dict))
+                    #Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
+                    #Applymba.DynamicLinkcore(CurrMaskDict)
+                    Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient)
         pubsub.close()
 
 if __name__ == '__main__':

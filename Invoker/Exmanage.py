@@ -27,24 +27,31 @@ def GetNewMask(CurrMask,FuncName,Instruction,AllList,ArrivalRate,ProfilingDataTp
         resource.append(CPUamount * ProflingDataConsum[FuncName][i])
     #Then after you get the new ex resource amount needed, and you know which one you need to update, then
     #Have potential perf increment here. by reduce j range.
+    #print(CPUamount,flush=True)
     if Instruction =='ScaleUp':
-        old = len(CurrMask[FuncName])
+        old = sum(CurrMask[FuncName])
+        new_mask = list(CurrMask[FuncName])
         for i in range(old, resource[0]):
             # Add this much resource
             for j in range(len(AllList)):
                 if AllList[j] == 1:
                     # Take the resources
-                    CurrMask[FuncName][j] = 1
+                    new_mask[j] = 1
                     AllList[j] = 0
                     break
+                #print(new_mask,flush=True)
+        CurrMask[FuncName] = new_mask
     else:
-        old = len(CurrMask[FuncName])
+        old = sum(CurrMask[FuncName])
+        new_mask = list(CurrMask[FuncName])
         for i in range(resource[0],old):
             # Add this much resource
             for j in range(old):
                 if CurrMask[FuncName][j] == 1:
                     # Take the resources
-                    CurrMask[FuncName][j] = 0
+                    new_mask[j] = 0
                     AllList[j] = 1
                     break
+        #print(new_mask, flush=True)
+        CurrMask[FuncName] = new_mask
     #return resource
