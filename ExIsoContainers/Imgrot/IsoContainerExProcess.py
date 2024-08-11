@@ -101,7 +101,9 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId):
     while Signal.local_sign:
         result = RedisDataClient.blpop(FuncName, 5)
         if result:
-            _, data = json.loads(result)
+            _, datastr = result
+            # print(data,flush=True)
+            data = json.loads(datastr)
             arrtime = data['ArrivalTime']
             st = time.time()
             result = imgrot()
@@ -144,12 +146,12 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
         Control_Sign.append(ControlSign())
 
     #Simply Init here.
-    NewMask = [0]*23
-    for i in range(5):
-        NewMask[i] = 1
-    #Inithere
-    controller(RedisDataClient, FuncName, Control_Sign,
-               NewMask, CPUMASK,RunningProcessesDict,)
+    # NewMask = [0]*23
+    # for i in range(5):
+    #     NewMask[i] = 1
+    # #Inithere
+    # controller(RedisDataClient, FuncName, Control_Sign,
+    #            NewMask, CPUMASK,RunningProcessesDict,)
     Listening = True
     while Listening:
         #Add shutdown here.
