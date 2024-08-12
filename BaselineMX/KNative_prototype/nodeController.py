@@ -27,7 +27,7 @@ for i in range(0, CPU_NUM):
     mapCores[i] = "none"
 
 # set log level (INFO, DEBUG)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,filename='NC.log', filemode='w')
 
 
 
@@ -161,11 +161,11 @@ while(1):
                 break
         time.sleep(1)
 
-    logging.info("Init environment finished.")
-    logging.info(mapCores)
-    logging.info(reqCores)
+    logging.info("Init environment finished.At "+ str(time.time()))
+    #logging.info(mapCores)
+    #logging.info(reqCores)
     logging.info(mapFuncToCores)
-    logging.info(scaleUp)
+    #logging.info(scaleUp)
 
     THRESHOLD = 0.7 # THRESHOLD to scale up
     THRESHOLD2 = 0.5 # THRESHOLD to scale down

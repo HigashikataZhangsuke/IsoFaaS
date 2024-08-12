@@ -1,96 +1,97 @@
-import subprocess
-import docker
+import asyncio
+import aiohttp
 import numpy as np
 import time
-import requests
-import threading
-from statistics import mean, median
-#Tune here if you want to do some tests
+import logging
+import subprocess
+import docker
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+# 设置日志记录
+logging.basicConfig(filename='requests.log', level=logging.INFO, format='%(asctime)s %(message)s')
+#Modify this when needed later.
 services = ["cnn_serving", "img_res", "img_rot", "ml_train", "vid_proc", "web_serve"]
+ip_addresses = []  # 存储服务的IP地址
 
-ip_addresses = []
 
-for service in services:
-    output = subprocess.check_output("docker run -d --name " + service + " --cpu-shares=0 jovanvr97/" + service + "_knative", shell=True).decode("utf-8")
-
+# 启动Docker容器并获取IP地址
+def setup_containers():
     client = docker.DockerClient()
-    container = client.containers.get(service)
-    ip_add = container.attrs['NetworkSettings']['IPAddress']
-    ip_addresses.append(ip_add)
+    for service in services:
+        subprocess.check_output(f"docker run -d --name {service} --cpu-shares=0 jovanvr97/{service}_knative",
+                                shell=True)
+        container = client.containers.get(service)
+        ip_add = container.attrs['NetworkSettings']['IPAddress']
+        ip_addresses.append(ip_add)
 
-def lambda_func(service):
-    global times
-    while True:
-        try:
-            t1 = time.time()
-            r = requests.post(service, json={"name": "test"})
-            break
-        except:
-            pass
-    t2 = time.time()
-    times.append(t2-t1)
+
+async def send_request(service_url):
+    service_name = service_url.split("/")[2]  # 假设 URL 格式为 http://ip:port
+    t1 = time.time()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(service_url, json={"name": "test"}) as response:
+            response_text = await response.text()  # 假设您对响应文本感兴趣
+            t2 = time.time()
+            logging.info(f"Sent to {service_name} at {t1}, Received at {t2}")
+            return t2 - t1
+
+
+async def scheduled_requests(service_urls, inter_arrival_times):
+    index = 0
+    num_services = len(service_urls)
+    for delay in inter_arrival_times:
+        await asyncio.sleep(delay)  # 等待直到下一个请求的时间
+        service_url = service_urls[index % num_services]
+        index += 1
+        asyncio.create_task(send_request(service_url))
+
+
+def generate_poisson_arrival_times(rate, duration):
+    np.random.seed(100)  # 设置随机种子以保持结果的一致性
+    times = []
+    current_time = 0
+    while current_time < duration:
+        interval = np.random.exponential(1 / rate)
+        current_time += interval
+        if current_time < duration:
+            times.append(current_time)
+    return times
+
 
 def EnforceActivityWindow(start_time, end_time, instance_events):
+    event_times = [e for e in instance_events if (e > start_time) and (e < end_time)]
     events_iit = []
-    events_abs = [0] + instance_events
-    event_times = [sum(events_abs[:i]) for i in range(1, len(events_abs) + 1)]
-    event_times = [e for e in event_times if (e > start_time)and(e < end_time)]
     try:
-        events_iit = [event_times[0]] + [event_times[i]-event_times[i-1]
+        events_iit = [event_times[0]] + [event_times[i] - event_times[i - 1]
                                          for i in range(1, len(event_times))]
-    except:
+    except IndexError:
         pass
     return events_iit
 
-loads = [5, 30, 80]
-load_desc = ["LOW_LOAD", "MED_LOAD", "HIGH_LOAD"]
 
-output_file = open("run-all-out.txt", "w")
+async def main():
+    setup_containers()  # 启动容器并获取IP地址
+    scheduler = AsyncIOScheduler()
+    duration = 1  # 测试的持续时间（秒）
+    rate = 100  # 每秒请求数
 
-indR = 0
-for load in loads:
-    duration = 1
-    seed = 100
-    rate = load
-    # generate Poisson's distribution of events 
-    inter_arrivals = []
-    np.random.seed(seed)
-    beta = 1.0/rate
-    oversampling_factor = 2
-    inter_arrivals = list(np.random.exponential(scale=beta, size=int(oversampling_factor*duration*rate)))
-    instance_events = EnforceActivityWindow(0,duration,inter_arrivals)
-        
-    for service in services:
-        
-        threads = []
-        times = []
-        after_time, before_time = 0, 0
+    inter_arrival_times = generate_poisson_arrival_times(rate, duration)
+    inter_arrival_times = EnforceActivityWindow(0, duration, inter_arrival_times)
+    service_urls = [f"http://{ip}:{9999}" for ip in ip_addresses]
 
-        st = 0
-        for t in instance_events:
-            st = st + t - (after_time - before_time)
-            before_time = time.time()
-            if st > 0:
-                time.sleep(st)
+    scheduler.add_job(scheduled_requests, args=[service_urls, inter_arrival_times])
 
-            threadToAdd = threading.Thread(target=lambda_func, args=("http://"+ip_addresses[services.index(service)]+":9999", ))
-            threads.append(threadToAdd)
-            threadToAdd.start()
-            after_time = time.time()
-
-        for thread in threads:
-            thread.join()
-
-        print("=====================" + service + load_desc[loads.index(load)] + "=====================", file=output_file, flush=True)
-        print(times, file=output_file, flush=True)
-        #print(mean(times), file=output_file, flush=True)
-        #print(median(times), file=output_file, flush=True)
-        #print(np.percentile(times, 90), file=output_file, flush=True)
-        #print(np.percentile(times, 95), file=output_file, flush=True)
-        #print(np.percentile(times, 99), file=output_file, flush=True)
+    scheduler.start()
+    try:
+        while True:
+            await asyncio.sleep(1)  # 保持主循环运行
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+        # 在脚本结束时清理容器
+        for service in services:
+            subprocess.run(f"docker stop {service}", shell=True)
+            subprocess.run(f"docker rm {service}", shell=True)
 
 
-for service in services:
-    output = subprocess.check_output("docker stop " + service, shell=True).decode("utf-8")
-    output = subprocess.check_output("docker rm " + service, shell=True).decode("utf-8")
-
+if __name__ == '__main__':
+    asyncio.run(main())

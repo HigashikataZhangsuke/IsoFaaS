@@ -1,10 +1,10 @@
 #for shareable resource, you need to send the ratio to flask, so that it can allocate reqs.
 import json
 
-def sendratio(ArrivalRate,ProfilingDataTp,CurrMask,Redisflaskclient):
+def sendratio(ArrivalRate,ProfilingDataTp,CurrMask,Redisflaskclient,FuncList):
     # Arrivalrate: a dict stores function's arrival rate. If it is zero means not an alive funtion
     #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-    FuncList = ["alu"]
+    #FuncList = ["alu", "mlt"]
     Ratio = {}
     for FuncName in FuncList:
         Ratio[FuncName] = ProfilingDataTp[FuncName][sum(CurrMask[FuncName])]/ArrivalRate[FuncName]

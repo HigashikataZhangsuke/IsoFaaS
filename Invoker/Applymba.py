@@ -18,9 +18,10 @@ def DynamicAllocation(ProflingDataResourConsum,CurrMaskList):
     subprocess.run(
         ['sudo', 'pqos', '-e', 'mba_max:5'  + '=' + str(Lefted), '-r'],check=True)
 
-def DynamicLinkcore(CurrMaskList):
+def DynamicLinkcore(CurrMaskList,FuncList):
     MemList = ["omp", "vid", "mls", "mlt", "rot"]
     for i in range(5):
-        cpu_list = ','.join(str(cpu) for cpu in CurrMaskList[MemList[i]])
-        subprocess.run(['sudo', 'pqos', '-a', f'core:{i}={cpu_list}'],check=True)
+        if MemList[i] in FuncList:
+            cpu_list = ','.join(str(cpu) for cpu in CurrMaskList[MemList[i]])
+            subprocess.run(['sudo', 'pqos', '-a', f'core:{i}={cpu_list}'],check=True)
     subprocess.run(['sudo', 'pqos', '-a', f'core:{5}={23}'], check=True)

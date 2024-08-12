@@ -10,7 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 broker_url = "http://broker-ingress.knative-eventing.svc.cluster.local/default/default"
 
 #function_list = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-function_list = ["alu"]
+function_list = ["alu","mlt"]
 async def fetch(session, url, json_data, headers):
     async with session.post(url, json=json_data, headers=headers) as response:
         return await response.text()
@@ -62,7 +62,7 @@ RPS = [399, 390, 405, 455, 418, 423, 393, 380, 388, 380, 398, 381, 414, 417, 384
 def sendrate(RedisClusterRateClient):
     global clock
     if clock<len(RPS):
-        RedisClusterRateClient.publish('RateChannel', RPS[clock])
+        RedisClusterRateClient.publish('RateChannel', RPS[clock]/2)
         clock +=1
 
 if __name__ == '__main__':

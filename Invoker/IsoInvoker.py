@@ -57,15 +57,16 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
         AllCPUList.append(1)
     AllCPUList[6] = 0
     #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-    FuncList = ["alu"]
+    FuncList = ["alu", "mlt"]
     for func in FuncList:
         #ArrivalRateDict[func] = 0.00
         CurrMaskDict[func] = [0]*23
         templist = CurrMaskDict[func]
-        templist[6] = 1
+        #templist[6] = 1
         CurrMaskDict[func] = templist
         Bound[func] = 23
         Clusterpolicy[func] = "KeepOrGC"
+        Applymba.StaticAllocation(ProflingDataConsum)
         print("start "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
     NewArrDict = {}
     while True:
@@ -82,7 +83,8 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                     Rate = float(message['data'])
                     #print("Rate is " + str(Rate),flush = True)
                     #NewArrDict = copy.deepcopy(ArrivalRateDict)
-                    NewArrDict['alu'] = Rate
+                    for func in FuncList:
+                        NewArrDict[func] = Rate
                     #print(NewArrDict)
                     # For the shutdown message, we simply set the CPUMASK to all zero(If we still keep the container alive could live later, Currently shut down)
                     #if ID in RateDict:
@@ -111,16 +113,18 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                     if "omp" in FuncList or "vid" in FuncList or "rot" in FuncList or "mls" in FuncList or "mlt" in FuncList:
                         #Add function check to these two function later.
                         Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
-                        Applymba.DynamicLinkcore(CurrMaskDict)
-                    Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient)
+                        Applymba.DynamicLinkcore(CurrMaskDict,FuncList)
+                    Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient,FuncList)
         pubsub.close()
 
 if __name__ == '__main__':
     AffinityId = random.randint(24, 47)
     os.sched_setaffinity(0, {AffinityId})
-    ProfilingDataTp = {'alu':[0,91.955, 177.1163, 262.2776, 347.4389, 432.6002, 517.7615, 602.9227999999999, 688.0840999999999, 773.2453999999999, 858.4066999999999, 943.5679999999999, 1028.7293, 1113.8906, 1199.0519, 1284.2132, 1369.3745, 1454.5357999999999, 1539.6970999999999, 1624.8583999999998, 1710.0196999999998, 1795.1809999999998, 1880.3422999999998]}
-    ProflingDataConsum = {'alu':[1,461,200,1]}
-    ProfilingLatency = {'alu':0.0108,}
+    ProfilingDataTp = {'alu':[0,91.955, 177.1163, 262.2776, 347.4389, 432.6002, 517.7615, 602.9227999999999, 688.0840999999999, 773.2453999999999, 858.4066999999999, 943.5679999999999, 1028.7293, 1113.8906, 1199.0519, 1284.2132, 1369.3745, 1454.5357999999999, 1539.6970999999999, 1624.8583999999998, 1710.0196999999998, 1795.1809999999998, 1880.3422999999998]
+                       ,'mlt':[0,91.955, 177.1163, 262.2776, 347.4389, 432.6002, 517.7615, 602.9227999999999, 688.0840999999999, 773.2453999999999, 858.4066999999999, 943.5679999999999, 1028.7293, 1113.8906, 1199.0519, 1284.2132, 1369.3745, 1454.5357999999999, 1539.6970999999999, 1624.8583999999998, 1710.0196999999998, 1795.1809999999998, 1880.3422999999998]
+                       }
+    ProflingDataConsum = {'alu':[1,461,200,1],'mlt':[1,461,200,1]}
+    ProfilingLatency = {'alu':0.0108,'mlt':0.0108}
     #This will be the same
     redis_host = '172.31.22.224'  # 替换为实际的节点IP,after starting all node and services.
     RedisClusterRateClient = redis.Redis(host=redis_host, port=32526,decode_responses=True)
