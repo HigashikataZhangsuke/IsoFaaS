@@ -169,7 +169,7 @@ while(1):
 
     THRESHOLD = 0.7 # THRESHOLD to scale up
     THRESHOLD2 = 0.5 # THRESHOLD to scale down
-    SLO = 65 # SLO
+    SLO = 10 # SLO
     
     if ReTry == 1:
         time.sleep(2)

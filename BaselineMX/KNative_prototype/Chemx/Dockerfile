@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y libnuma1 libnuma-dev
 RUN apt-get update && apt-get install -y numactl
 
 RUN mkdir -p /pythonAction
+ADD ./Che /pythonAction/
 ADD runner.py /pythonAction/
 ADD app.py /pythonAction/
 ADD dnld_blob.py /pythonAction/

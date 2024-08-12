@@ -1,43 +1,46 @@
-from mxnet import gluon
-import os
-import mxnet as mx
+import torch
+from torchvision import models, transforms
 from PIL import Image
-from azure.storage.blob import BlobServiceClient, BlobClient
-import dnld_blob
-
-connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
-blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-container_client = blob_service_client.get_container_client("artifacteval")
-
-net = gluon.model_zoo.vision.resnet50_v1(pretrained=True, root = '/tmp/')
-net.hybridize(static_alloc=True, static_shape=True)
-lblPath = gluon.utils.download('http://data.mxnet.io/models/imagenet/synset.txt',path='/tmp/')
-with open(lblPath, 'r') as f:
-    labels = [l.rstrip() for l in f]
-
 def lambda_handler():
-    blobName = "img10.jpg"
-    dnld_blob.download_blob_new(blobName)
-    full_blob_name = blobName.split(".")
-    proc_blob_name = full_blob_name[0] + "_" + str(os.getpid()) + "." + full_blob_name[1]
-    image = Image.open(proc_blob_name)
-    image.save('tempImage_'+str(os.getpid())+'.jpeg')
+    model = models.resnet50(pretrained=True)
+    model.eval()  # 设置为评估模式
+    # 下载ImageNet标签文件
+    labels_url = 'https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json'
+    labels_path = 'imagenet_labels.json'
+    if not os.path.exists(labels_path):
+        import urllib.request
+        urllib.request.urlretrieve(labels_url, labels_path)
+    with open(labels_path, 'r') as f:
+        labels = json.load(f)
+    input_dir = '/usr/src/app/Res/'  # 修改为包含图片的目录路径
+    image_list = os.listdir(input_dir)
+    generation_count = 1
+    total_time = 0.0
+    for i in range(generation_count):
+        input_image_name = image_list[i % len(image_list)]
+        image_path = os.path.join(input_dir, input_image_name)
+        start_time = time.time()
+        # 定义图像预处理过程
+        preprocess = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        # 读取并处理图像
+        image = Image.open(image_path)
+        img_tensor = preprocess(image)
+        img_tensor = img_tensor.unsqueeze(0)  # 批量化
+        # 进行推断
+        with torch.no_grad():
+            outputs = model(img_tensor)
+            probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+            top5_prob, top5_catid = torch.topk(probabilities, 5)
+        inference = ''
+        for j in range(top5_prob.size(0)):
+            inference += 'With prob = %.5f, it contains %s. ' % (top5_prob[j].item(), labels[top5_catid[j].item()])
+        exec_time = time.time() - start_time
+        total_time += exec_time
+    average_time = total_time / generation_count
+    return {"result": inference, "average_execution_time": average_time}
 
-    # format image as (batch, RGB, width, height)
-    img = mx.image.imread('tempImage_'+str(os.getpid())+'.jpeg')
-    img = mx.image.imresize(img, 224, 224) # resize
-    img = mx.image.color_normalize(img.astype(dtype='float32')/255,
-                                mean=mx.nd.array([0.485, 0.456, 0.406]),
-                                std=mx.nd.array([0.229, 0.224, 0.225])) # normalize
-    img = img.transpose((2, 0, 1)) # channel first
-    img = img.expand_dims(axis=0) # batchify
-
-    prob = net(img).softmax() # predict and normalize output
-    idx = prob.topk(k=5)[0] # get top 5 result
-    inference = ''
-    for i in idx:
-        i = int(i.asscalar())
-        # print('With prob = %.5f, it contains %s' % (prob[0,i].asscalar(), labels[i]))
-        inference = inference + 'With prob = %.5f, it contains %s' % (prob[0,i].asscalar(), labels[i]) + '. '
-
-    return {"result = ":inference}

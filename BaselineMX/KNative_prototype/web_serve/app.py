@@ -1,24 +1,36 @@
-import os
-from azure.storage.blob import BlobServiceClient, BlobClient
-import dnld_blob
-
-connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
-blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-container_client = blob_service_client.get_container_client("artifacteval")
-
+import pandas as pd
 def lambda_handler():
-    blobName = "money.txt"
-    dnld_blob.download_blob_new(blobName)
-    
-    moneyF = open("money_"+str(os.getpid())+".txt", "r")
-    money = float(moneyF.readline())
-    moneyF.close()
-    money -= 100.0
-    new_file = open("moneyTemp"+str(os.getpid())+".txt", "w")
-    new_file.write(str(money))
-    new_file.close()
-    fReadname = "moneyTemp"+str(os.getpid())+".txt" 
-    blobName = "money.txt"
-    dnld_blob.upload_blob_new(blobName, fReadname)
+    input_dir = './MLT/'
+    csv_list = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
+    generation_count = 100
 
-    return {"Money":"withdrawn"}
+    total_time = 0.0
+
+    for i in range(generation_count):
+        input_csv_name = csv_list[i % len(csv_list)]
+        input_csv_path = os.path.join(input_dir, input_csv_name)
+
+        # 开始计时
+        start_time = time.time()
+
+        # 读取CSV文件
+        df = pd.read_csv(input_csv_path)
+
+        # 遍历奇数行并更新值
+        for j in range(len(df)):
+            if j % 2 != 0:  # 奇数行
+                df.at[j, 'X'] += 1  # 更新X列的值
+                df.at[j, 'Y'] += 1  # 更新Y列的值
+
+        # 保存更新后的CSV文件
+        updated_csv_path = os.path.join('./results/', f'updated_{input_csv_name}')
+        df.to_csv(updated_csv_path, index=False)
+
+        # 结束计时
+        end_time = time.time()
+        execution_time = end_time - start_time
+        total_time += execution_time
+
+    average_time = total_time / generation_count
+
+    return {"average_execution_time": average_time}

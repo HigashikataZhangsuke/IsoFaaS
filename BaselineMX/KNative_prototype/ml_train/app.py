@@ -1,56 +1,37 @@
-import os
-import time
-import pickle
-from azure.storage.blob import BlobServiceClient, BlobClient
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 import pandas as pd
-import re
-import warnings
-import dnld_blob
-
-warnings.filterwarnings("ignore")
-
-cleanup_re = re.compile('[^a-z]+')
-
-connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
-blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-container_client = blob_service_client.get_container_client("artifacteval")
-
-def cleanup(sentence):
-    sentence = sentence.lower()
-    sentence = cleanup_re.sub(' ', sentence).strip()
-    return sentence
-
-df_name = 'minioDataset.csv'
-
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+import joblib
 def lambda_handler():
+    input_dir = './MLT/'
+    csv_list = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
+    generation_count = 100
 
-    t1 = time.time()
-    blobName = df_name
-    dnld_blob.download_blob_new(blobName)
-    full_blob_name = df_name.split(".")
-    proc_blob_name = full_blob_name[0] + "_" + str(os.getpid()) + "." + full_blob_name[1]
-    t2 = time.time()
-    print("Time 1 = " + str(t2-t1))
+    total_time = 0.0
 
-    df = pd.read_csv(proc_blob_name)
-    df['train'] = df['Text'].apply(cleanup)
+    for i in range(generation_count):
+        input_csv_name = csv_list[i % len(csv_list)]
+        input_csv_path = os.path.join(input_dir, input_csv_name)
 
-    model = LogisticRegression(max_iter=10)
-    tfidf_vector = TfidfVectorizer(min_df=1000).fit(df['train'])
-    train = tfidf_vector.transform(df['train'])
-    model.fit(train, df['Score'])
-    t3 = time.time()
-    print("Time 2 = " + str(t3-t2))
+        # 读取CSV文件
+        df = pd.read_csv(input_csv_path)
+        X = df[['X']].values
+        Y = df['Y'].values
 
-    filename = 'finalized_model_'+str(os.getpid())+'.sav'
-    pickle.dump(model, open(filename, 'wb'))
+        start_time = time.time()
 
-    fReadName = 'finalized_model_'+str(os.getpid())+'.sav'
-    blobName = 'finalized_model_'+str(os.getpid())+'.sav'
-    dnld_blob.upload_blob_new(blobName, fReadName)
-    t4 = time.time()
-    print("Time 3 = " + str(t4-t3))
+        # 训练逻辑回归模型
+        model = LogisticRegression()
+        model.fit(X, Y)
 
-    return {"Ok":"done"}
+        end_time = time.time()
+
+        # 保存模型到本地
+        model_filename = f"./results/logistic_regression_model_{os.getpid()}.pkl"
+        joblib.dump(model, model_filename)
+        execution_time = end_time - start_time
+        total_time += execution_time
+
+    average_time = total_time / generation_count
+
+    return {"AverageExecutionTime": average_time}

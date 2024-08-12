@@ -1,11 +1,12 @@
 FROM python:3.10-slim
 
-RUN pip install py-libnuma pyaes
+RUN pip install psutil numpy pyaes
 RUN apt-get update && apt-get install -y libpython3.10
 RUN apt-get update && apt-get install -y libnuma1 libnuma-dev
 RUN apt-get update && apt-get install -y numactl
 
 RUN mkdir -p /pythonAction
+ADD ./generated_strings_500.txt /pythonAction/
 ADD runner.py /pythonAction/
 ADD app.py /pythonAction/
 ADD dnld_blob.py /pythonAction/

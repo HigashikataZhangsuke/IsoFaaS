@@ -1,30 +1,39 @@
-import os
 from PIL import Image
-from azure.storage.blob import BlobServiceClient, BlobClient
-import dnld_blob
-
-connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
-blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-container_client = blob_service_client.get_container_client("artifacteval")
-
 def lambda_handler():
-    blobName = "img10.jpg"
-    dnld_blob.download_blob_new(blobName)
-    full_blob_name = blobName.split(".")
-    proc_blob_name = full_blob_name[0] + "_" + str(os.getpid()) + "." + full_blob_name[1]
-    
-    image = Image.open(proc_blob_name)
-    width, height = image.size
-    # Setting the points for cropped image
-    left = 4
-    top = height / 5
-    right = 100
-    bottom = 3 * height / 5
-    im1 = image.crop((left, top, right, bottom))
-    im1.save('tempImage_'+str(os.getpid())+'.jpeg')
+    input_dir = './Res/'  # Modify this to your image directory
+    image_list = os.listdir(input_dir)
+    generation_count = 100
 
-    fReadname = 'tempImage_'+str(os.getpid())+'.jpeg'
-    blobName = "img10_res.jpg"
-    dnld_blob.upload_blob_new(blobName, fReadname)
+    total_time = 0.0
+    list = []
+    for i in range(generation_count):
+        input_image_name = image_list[i % len(image_list)]
+        input_image_path = os.path.join(input_dir, input_image_name)
+        start_time = time.time()
+        # Open and process the image
+        image = Image.open(input_image_path)
+        width, height = image.size
+        # Set the crop area
+        left = 4
+        top = height / 5
+        right = left + width / 2
+        bottom = 3 * height / 5
+        im1 = image.crop((left, top, right, bottom))
+        # Perform multiple resize operations to increase memory bandwidth usage
+        for j in range(10):
+            new_width = width * (j + 1)
+            new_height = height * (j + 1)
+            im1 = im1.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        # Save the processed mage to a specified path
+        list.append(im1)
+        end_time = time.time()
+        # Calculate elapsed time
+        elapsed_time = end_time - start_time
+        total_time += elapsed_time
 
-    return {"Image":"resized"}
+    average_time = total_time / generation_count
+    for i in range(len(list)):
+        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        list[i].save(output_image_path)
+
+    return {"AverageExecutionTime": average_time}

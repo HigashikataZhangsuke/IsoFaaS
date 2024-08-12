@@ -7,11 +7,12 @@ import socket
 import numpy as np
 import time
 import signal
-from azure.storage.blob import BlobServiceClient, BlobClient
+import numa
+#from azure.storage.blob import BlobServiceClient, BlobClient
 
-connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
-blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-container_client = blob_service_client.get_container_client("artifacteval")
+#connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
+#blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+#container_client = blob_service_client.get_container_client("artifacteval")
 
 def signal_handler(sig, frame):
     serverSocket_.close()
@@ -94,7 +95,7 @@ mapPIDtoStatus = {} # map from pid to status (running, waiting)
 
 responseMapWindows = [] # map from pid to response
 
-affinity_mask = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+affinity_mask = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,16,17,18,19,20,21,22,23}
 
 
 # The function to update the core nums by request. 
@@ -221,6 +222,120 @@ def waitTermination(childPid):
             except:
                 pass
     lockPIDMap.release()
+#We do not have any IO
+# def performIO(clientSocket_):
+#     global mapPIDtoStatus
+#     global numCores
+#     global checkTable
+#     global mapPIDtoIO
+#     global valueTable
+#     global checkTableShadow
+#     global mapPIDtoLeader
+#
+#     data_ = b''
+#     data_ += clientSocket_.recv(1024)
+#     dataStr = data_.decode('UTF-8')
+#
+#     while True:
+#         dataStrList = dataStr.splitlines()
+#
+#         message = None
+#         try:
+#             message = json.loads(dataStrList[-1])
+#             break
+#         except:
+#             data_ += clientSocket_.recv(1024)
+#             dataStr = data_.decode('UTF-8')
+#
+#     operation = message["operation"]
+#     blobName = message["blobName"]
+#     blockedID = message["pid"]
+#
+#     my_id = threading.get_native_id()
+#
+#     #blob_client = BlobClient.from_connection_string(connection_string, container_name="artifacteval", blob_name=blobName)
+#
+#     lockPIDMap.acquire()
+#     mapPIDtoStatus[blockedID] = "blocked"
+#     for child in mapPIDtoStatus.copy():
+#         if child in mapPIDtoStatus:
+#             if mapPIDtoStatus[child] == "waiting":
+#                 mapPIDtoStatus[child] = "running"
+#                 try:
+#                     os.kill(child, signal.SIGCONT)
+#                     break
+#                 except:
+#                     pass
+#     lockPIDMap.release()
+#
+#     if operation == "get":
+#         lockCache.acquire()
+#         if blobName in checkTable:
+#             myLeader = mapPIDtoLeader[blobName]
+#             myEvent = threading.Event()
+#             mapPIDtoIO[my_id] = myEvent
+#             checkTable[blobName].append(my_id)
+#             checkTableShadow[myLeader].append(my_id)
+#             lockCache.release()
+#             myEvent.wait()
+#             lockCache.acquire()
+#             blob_val = valueTable[myLeader]
+#             mapPIDtoIO.pop(my_id)
+#             checkTableShadow[myLeader].remove(my_id)
+#             if len(checkTableShadow[myLeader]) == 0:
+#                 checkTableShadow.pop(myLeader)
+#                 valueTable.pop(myLeader)
+#             lockCache.release()
+#         else:
+#             mapPIDtoLeader[blobName] = my_id
+#             checkTable[blobName] = []
+#             checkTableShadow[my_id] = []
+#             checkTable[blobName].append(my_id)
+#             #lockCache.release()
+#             #blob_val = (blob_client.download_blob()).readall()
+#             #lockCache.acquire()
+#             #valueTable[my_id] = blob_val
+#             checkTable[blobName].remove(my_id)
+#             for elem in checkTable[blobName]:
+#                 mapPIDtoIO[elem].set()
+#             checkTable.pop(blobName)
+#             lockCache.release()
+#
+#         full_blob_name = blobName.split(".")
+#         proc_blob_name = full_blob_name[0] + "_" + str(blockedID) + "." + full_blob_name[1]
+#         #with open(proc_blob_name, "wb") as my_blob:
+#         #    my_blob.write(blob_val)
+#     else:
+#         fReadname = message["value"]
+#         fRead = open(fReadname,"rb")
+#         value = fRead.read()
+#         #blob_client.upload_blob(value, overwrite=True)
+#         #blob_val = "none"
+#
+#     lockPIDMap.acquire()
+#     numRunning = 0 # number of running processes
+#     for child in mapPIDtoStatus.copy():
+#         if mapPIDtoStatus[child] == "running":
+#             numRunning += 1
+#     if numRunning < numCores:
+#         mapPIDtoStatus[blockedID] = "running"
+#         os.kill(blockedID, signal.SIGCONT)
+#     else:
+#         mapPIDtoStatus[blockedID] = "waiting"
+#         os.kill(blockedID, signal.SIGSTOP)
+#     lockPIDMap.release()
+#
+#     messageToRet = json.dumps({"value":"OK"})
+#     try:
+#         os.kill(blockedID, signal.SIGCONT)
+#     except:
+#         pass
+#     clientSocket_.send(messageToRet.encode(encoding="utf-8"))
+#     try:
+#         os.kill(blockedID, signal.SIGCONT)
+#     except:
+#         pass
+#     # clientSocket_.close()
 
 def performIO(clientSocket_):
     global mapPIDtoStatus
@@ -232,109 +347,53 @@ def performIO(clientSocket_):
     global mapPIDtoLeader
 
     data_ = b''
-    data_ += clientSocket_.recv(1024)
-    dataStr = data_.decode('UTF-8')
-
     while True:
-        dataStrList = dataStr.splitlines()
-        
-        message = None   
         try:
-            message = json.loads(dataStrList[-1])
-            break
-        except:
             data_ += clientSocket_.recv(1024)
             dataStr = data_.decode('UTF-8')
-    
-    operation = message["operation"]
-    blobName = message["blobName"]
-    blockedID = message["pid"]
+            dataStrList = dataStr.splitlines()
+            message = json.loads(dataStrList[-1])
+            break  # 成功解析到消息后退出循环
+        except json.JSONDecodeError:
+            # 如果数据不完整，继续接收
+            continue
+        except socket.error:
+            # 如果出现接收错误，退出循环
+            break
 
-    my_id = threading.get_native_id()
+    # 这里只保留对消息的简单响应和解锁逻辑
+    operation = message.get("operation", "default_operation")
+    blobName = message.get("blobName", "default_blob")
+    blockedID = message.get("pid", -1)
 
-    blob_client = BlobClient.from_connection_string(connection_string, container_name="artifacteval", blob_name=blobName)
-
-    lockPIDMap.acquire()
-    mapPIDtoStatus[blockedID] = "blocked"
-    for child in mapPIDtoStatus.copy():
-        if child in mapPIDtoStatus:
-            if mapPIDtoStatus[child] == "waiting":
+    if blockedID != -1:
+        lockPIDMap.acquire()
+        mapPIDtoStatus[blockedID] = "blocked"
+        for child in mapPIDtoStatus.copy():
+            if child in mapPIDtoStatus and mapPIDtoStatus[child] == "waiting":
                 mapPIDtoStatus[child] = "running"
                 try:
                     os.kill(child, signal.SIGCONT)
                     break
                 except:
                     pass
-    lockPIDMap.release()
-    
-    if operation == "get":
-        lockCache.acquire()
-        if blobName in checkTable:
-            myLeader = mapPIDtoLeader[blobName]
-            myEvent = threading.Event()
-            mapPIDtoIO[my_id] = myEvent
-            checkTable[blobName].append(my_id)
-            checkTableShadow[myLeader].append(my_id)
-            lockCache.release()
-            myEvent.wait()
-            lockCache.acquire()
-            blob_val = valueTable[myLeader]
-            mapPIDtoIO.pop(my_id)
-            checkTableShadow[myLeader].remove(my_id)
-            if len(checkTableShadow[myLeader]) == 0:
-                checkTableShadow.pop(myLeader)
-                valueTable.pop(myLeader)
-            lockCache.release()
-        else:
-            mapPIDtoLeader[blobName] = my_id
-            checkTable[blobName] = []
-            checkTableShadow[my_id] = []
-            checkTable[blobName].append(my_id)
-            lockCache.release()
-            blob_val = (blob_client.download_blob()).readall()
-            lockCache.acquire()
-            valueTable[my_id] = blob_val
-            checkTable[blobName].remove(my_id)
-            for elem in checkTable[blobName]:
-                mapPIDtoIO[elem].set()
-            checkTable.pop(blobName)
-            lockCache.release()
+        lockPIDMap.release()
 
-        full_blob_name = blobName.split(".")
-        proc_blob_name = full_blob_name[0] + "_" + str(blockedID) + "." + full_blob_name[1]
-        with open(proc_blob_name, "wb") as my_blob:
-            my_blob.write(blob_val)
-    else:
-        fReadname = message["value"]
-        fRead = open(fReadname,"rb")
-        value = fRead.read()
-        blob_client.upload_blob(value, overwrite=True)
-        blob_val = "none"
+    # 这里是你需要保留的代码，做一些简单的处理即可
+    messageToRet = json.dumps({"value": "OK"})
+    clientSocket_.send(messageToRet.encode(encoding="utf-8"))
+    clientSocket_.close()
 
     lockPIDMap.acquire()
-    numRunning = 0 # number of running processes
-    for child in mapPIDtoStatus.copy():
-        if mapPIDtoStatus[child] == "running":
-            numRunning += 1
-    if numRunning < numCores:
+    numRunning = sum(1 for status in mapPIDtoStatus.values() if status == "running")
+    if numRunning < numCores and blockedID != -1:
         mapPIDtoStatus[blockedID] = "running"
         os.kill(blockedID, signal.SIGCONT)
-    else:
+    elif blockedID != -1:
         mapPIDtoStatus[blockedID] = "waiting"
         os.kill(blockedID, signal.SIGSTOP)
     lockPIDMap.release()
 
-    messageToRet = json.dumps({"value":"OK"})
-    try:
-        os.kill(blockedID, signal.SIGCONT)
-    except:
-        pass
-    clientSocket_.send(messageToRet.encode(encoding="utf-8"))
-    try:
-        os.kill(blockedID, signal.SIGCONT)
-    except:
-        pass
-    # clientSocket_.close()
 
 def IOThread():
     myHost = '0.0.0.0'
@@ -362,9 +421,9 @@ def run():
     global responseMapWindows
     global affinity_mask
     # Set the core of mxcontainer
-    numCores = 16
+    numCores = 24
     os.sched_setaffinity(0, affinity_mask)
-
+    numa.memory.set_membind_nodes(0)
     print("Welcome... ", numCores)
 
     # Set the address and port, the port can be acquired from environment variable
@@ -396,8 +455,8 @@ def run():
     threadUpdate.start()
 
     # Monitor I/O Block
-    threadIntercept = threading.Thread(target=IOThread)
-    threadIntercept.start()
+    #threadIntercept = threading.Thread(target=IOThread)
+    #threadIntercept.start()
 
     # If a request come, then fork.
     while(True):
@@ -458,6 +517,7 @@ def run():
                 if "affinity_mask" in message:
                     affinity_mask = message["affinity_mask"]
                     os.sched_setaffinity(0, affinity_mask)
+                    numa.memory.set_membind_nodes(0)
                 msg = json.dumps(result)
                 responseFlag = True
 

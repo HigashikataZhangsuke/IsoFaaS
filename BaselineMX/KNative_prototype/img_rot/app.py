@@ -1,26 +1,40 @@
-import os
 from PIL import Image
-from azure.storage.blob import BlobServiceClient, BlobClient
-import dnld_blob
-
-connection_string = "DefaultEndpointsProtocol=https;AccountName=serverlesscache;AccountKey=O7MZkxwjyBWTcPL4fDoHi6n8GsYECQYiMe+KLOIPLpzs9BoMONPg2thf1wM1pxlVxuICJvqL4hWb+AStIKVWow==;EndpointSuffix=core.windows.net"
-blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-container_client = blob_service_client.get_container_client("artifacteval")
-
-fileAppend = open("../funcs.txt", "a")
-
 def lambda_handler():
-    blobName = "img10.jpg"
-    dnld_blob.download_blob_new(blobName)
-    full_blob_name = blobName.split(".")
-    proc_blob_name = full_blob_name[0] + "_" + str(os.getpid()) + "." + full_blob_name[1]
-    
-    image = Image.open(proc_blob_name)
-    img = image.transpose(Image.ROTATE_90)
-    img.save('tempImage_'+str(os.getpid())+'.jpeg')
+    input_dir = './Res/'  # Modify this to your image directory
+    image_list = os.listdir(input_dir)
+    generation_count = 100
 
-    fReadname = 'tempImage_'+str(os.getpid())+'.jpeg'
-    blobName = "img10_rot.jpg"
-    dnld_blob.upload_blob_new(blobName, fReadname)
-    
-    return {"Image":"rotated"}
+    total_time = 0.0
+    list = []
+    for i in range(generation_count):
+        input_image_name = image_list[i % len(image_list)]
+        input_image_path = os.path.join(input_dir, input_image_name)
+
+        start_time = time.time()
+
+        # Open and process the image
+        image = Image.open(input_image_path)
+
+        im1 = image.transpose(Image.ROTATE_90)
+        im2 = im1.transpose(Image.ROTATE_90)
+        im3 = im2.transpose(Image.ROTATE_90)
+        list.append(im3)
+        # im3.save(proc_image_path)
+        # Save the processed image to a specified path
+        # output_image_path = f"/home/ubuntu/Resultsbin/output_{os.getpid()}_{i}.jpg"
+        # im3.save(proc_image_path)
+        end_time = time.time()
+
+        # Calculate elapsed time
+        elapsed_time = end_time - start_time
+        total_time += elapsed_time
+
+    average_time = total_time / generation_count
+    # output_image_path = f"/home/ubuntu/Resultsbin/output_{os.getpid()}_{i}.jpg"
+    # im3.save(output_image_path)
+    # Check if running on CPU 0-3 before writing to the file
+
+    for i in range(len(list)):
+        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        list[i].save(output_image_path)
+    return {"AverageExecutionTime": average_time}

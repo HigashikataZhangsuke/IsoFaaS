@@ -1,7 +1,4 @@
 import pyaes
-
-import time
-
 def lambda_handler():
     input_file = './generated_strings_500.txt'
     with open(input_file, 'r') as f:
