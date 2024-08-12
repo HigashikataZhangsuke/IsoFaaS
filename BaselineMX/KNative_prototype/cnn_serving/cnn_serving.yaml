@@ -1,0 +1,21 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: cnn-serving
+  namespace: default
+spec:
+  template:
+    spec:
+      containerConcurrency: 1000
+      containers:
+        - image: jovanvr97/cnn_serving_knative:latest
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 640M
+            limits:
+              cpu: 2
+    metadata:
+      annotations:
+        autoscaling.knative.dev/target: "1000"
+        autoscaling.knative.dev/scale-to-zero-pod-retention-period: "1h"
