@@ -21,7 +21,7 @@ async def continuous_request(url, function_times, headers_template):
         for idx, func_time in enumerate(function_times):
             func_name = function_list[idx % len(function_list)]
             json_data = {
-                "FunctionName": func_name,
+                "FuncName": func_name,
                 "ArrivalTime": time.time()
             }
             headers = headers_template.copy()

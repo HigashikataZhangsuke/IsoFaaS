@@ -3,11 +3,12 @@ import subprocess
 # This is per-core setting. So what you will do is:
 # Assign All MBA first, since it is settled, except the shareable part.
 # However need to dynamic change the core-COS mapping
-def StaticAllocation(ProflingDataResourConsum):
+def StaticAllocation(ProflingDataResourConsum,FuncList):
     #For mapping, we'd better settle them down: COS5 -> share, and all other for omp,vid,mlserve,mltrain,imgrot
     MemList = ["omp","vid","mls","mlt","rot"]
     for i in range(5):
-        subprocess.run(['sudo', 'pqos', '-e', 'mba_max:' +str(i) + '=' + str(ProflingDataResourConsum[MemList[i]][1]), '-r'], check=True)
+        if MemList[i] in FuncList:
+            subprocess.run(['sudo', 'pqos', '-e', 'mba_max:' +str(i) + '=' + str(ProflingDataResourConsum[MemList[i]][1]), '-r'], check=True)
 
 def DynamicAllocation(ProflingDataResourConsum,CurrMaskList):
     #This is for the shareable parts. SH should get results same to the amount lefted in this VM.

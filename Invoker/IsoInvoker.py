@@ -66,7 +66,7 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
         CurrMaskDict[func] = templist
         Bound[func] = 23
         Clusterpolicy[func] = "KeepOrGC"
-        Applymba.StaticAllocation(ProflingDataConsum)
+        Applymba.StaticAllocation(ProflingDataConsum,FuncList)
         print("start "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
     NewArrDict = {}
     while True:

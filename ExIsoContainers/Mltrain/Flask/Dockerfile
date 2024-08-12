@@ -13,4 +13,5 @@ COPY . .
 
 # 运行 Python 脚本时的命令
 #CMD ["gunicorn", "-w", "6", "-b", "0.0.0.0:12346", "Flask:app"]
-CMD ["sh", "-c", "numactl --cpunodebind=1 --membind=1 taskset -c 24-47 gunicorn -w 6 -b 0.0.0.0:12346 Flask:app"]
+#CMD ["sh", "-c", "numactl --cpunodebind=1 --membind=1 taskset -c 24-47 gunicorn -w 6 -b 0.0.0.0:12346 Flask:app"]
+CMD ["python3","Flask.py"]

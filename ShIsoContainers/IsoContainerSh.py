@@ -408,7 +408,10 @@ def workerprocess(RedisDataClient,Signal,ID,RedisMetricUpdateClient):
     while Signal.local_sign:
         result = RedisDataClient.blpop('ShChannel', 5)
         if result:
-            _,data = json.loads(result)
+            _, datastr = result
+            # print(data,flush=True)
+            data = json.loads(datastr)
+            #_,data = json.loads(result)
             FuncName = data['FuncName']
             arrtime = data['ArrivalTime']
             match FuncName:

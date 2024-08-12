@@ -22,7 +22,7 @@ Profilingdata = {}
 def Listener(Ratio,MsgClient):
     global FuncName
     pubsub = MsgClient.pubsub()
-    pubsub.subscribe(['RatioChannel'])
+    pubsub.subscribe('RatioChannel')
     Listening = True
     while Listening:
         # Add shutdown here.
