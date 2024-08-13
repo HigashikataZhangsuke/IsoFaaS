@@ -17,7 +17,7 @@ def alu():
         width = int(video.get(3))
         height = int(video.get(4))
         fourcc = cv2.VideoWriter_fourcc(*'MPEG')
-        out = cv2.VideoWriter('./output_' + str(os.getpid()) + str(random.randint(1, 1000)) + '.avi', fourcc,
+        out = cv2.VideoWriter('./results/output_' + str(os.getpid()) + str(random.randint(1, 1000)) + '.avi', fourcc,
                               120.0, (width, height))
 
         # 用于存储所有灰度帧的列表

@@ -15,7 +15,7 @@ def alu():
         urllib.request.urlretrieve(labels_url, labels_path)
     with open(labels_path, 'r') as f:
         labels = json.load(f)
-    input_dir = '/usr/src/app/Res/'  # 修改为包含图片的目录路径
+    input_dir = './Res/'  # 修改为包含图片的目录路径
     image_list = os.listdir(input_dir)
     generation_count = 1
     total_time = 0.0
