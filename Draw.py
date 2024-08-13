@@ -1,5 +1,5 @@
-CFuncList = ["alu", "pyae", "che", "res",  "web"]
-MFuncList= ["omp","rot", "mls", "mlt", "vid"]
+CFuncList = ["alu", "pyae","rot", "mlt",  "web"]
+MFuncList= ["omp", "mls", "che", "res", "vid"]
 
 import random
 from itertools import combinations
@@ -27,8 +27,8 @@ def select_random_elements(list1, list2, n):
         print("No valid combinations found.")
 #
 # #select_random_elements(CFuncList, MFuncList, 2)
-# # for i in range(10):
-# #     select_random_elements(CFuncList, MFuncList, 2)
+for i in range(10):
+    select_random_elements(CFuncList, MFuncList, 2)
 print("=========================================")
-# for i in range(5):
-#     select_random_elements(CFuncList, MFuncList, 4)
+for i in range(5):
+    select_random_elements(CFuncList, MFuncList, 4)
