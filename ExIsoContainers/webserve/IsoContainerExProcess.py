@@ -44,7 +44,7 @@ def setup_logging(process_id):
 def webserve():
     input_dir = './MLT/'
     csv_list = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
-    generation_count = 100
+    generation_count = 1
 
     total_time = 0.0
 

@@ -44,7 +44,7 @@ def setup_logging(process_id):
 def imgres():
     input_dir = './Res/'  # Modify this to your image directory
     image_list = os.listdir(input_dir)
-    generation_count = 100
+    generation_count = 1
 
     total_time = 0.0
     list = []
