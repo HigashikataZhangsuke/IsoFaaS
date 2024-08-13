@@ -1,3 +1,4 @@
 ExIsoContainers/Chemelon/Che/tables_data.txt filter=lfs diff=lfs merge=lfs -text
 ShIsoContainers/Che/tables_data.txt filter=lfs diff=lfs merge=lfs -text
 Profiling/Che/tables_data.txt filter=lfs diff=lfs merge=lfs -text
+TPProfiling/Chemelon/Che/tables_data.txt filter=lfs diff=lfs merge=lfs -text
