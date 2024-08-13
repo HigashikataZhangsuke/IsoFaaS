@@ -72,6 +72,7 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
     lctime = time.time()
     logger.info(f"P+ {os.getpid()}+{lctime}+ starts logging")
     Totalcnt = 0
+    Totalprev = 0
     while Signal.local_sign:
         result = RedisDataClient.blpop(FuncName, 5)
         #print(result,flush=True)
@@ -84,9 +85,11 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             result = alu()
             et = time.time()
             Totalcnt += 1
-            if lctime-et > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) +str(Totalcnt/(lctime-et)),flush=True)
+            #print("processing",flush=True)
+            if et-lctime > 10:
+                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
                 lctime = time.time()
+                Totalprev = Totalcnt
             # logger.info(
             #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
@@ -123,19 +126,15 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
 
-    #Simply Init here.
-    # NewMask = [0]*23
-    # NewMask[7] = 1
-    # #Inithere
-    # controller(RedisDataClient, FuncName, Control_Sign,
-    #            NewMask, CPUMASK,RunningProcessesDict,)
     for timercnt in range(23):
         NewMask = [0]*23
         for index in range(timercnt+1):
             NewMask[index] = 1
         controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
-        time.sleep(40)
+        print(NewMask, flush=True)
+        print(CPUMASK, flush=True)
+        time.sleep(30)
 
     Listening = True
     while Listening:
