@@ -110,7 +110,7 @@ def che():
 def imgres():
     input_dir = './Res/'  # Modify this to your image directory
     image_list = os.listdir(input_dir)
-    generation_count = 100
+    generation_count = 1
 
     total_time = 0.0
     list = []
@@ -495,7 +495,7 @@ def workerprocess(RedisDataClient,Signal,ID,RedisMetricUpdateClient):
                     logger.info(
                         f"P+ {os.getpid()}+ process web request number + {Totalcnt[9]} + starts at + {st} + end at {et} + duration {et - st}")
             #Report to the isoinvoker every certain batches(running 100 reqs for all).
-            if sum(Totalcnt) % 100 ==0:
+            if sum(Totalcnt) % 10 ==0:
                 #Update E-E latencies.
                 for i in range(10):
                     PerfDict[FuncList[i]] = sum(DQs[i])/len(DQs[i])

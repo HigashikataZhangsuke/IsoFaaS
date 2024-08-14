@@ -55,9 +55,9 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
     #Init related parts:
     for i in range(23):
         AllCPUList.append(1)
-    AllCPUList[6] = 0
+    #AllCPUList[6] = 0
     #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-    FuncList = ["alu", "mlt"]
+    FuncList = ["che", "mls"]
     for func in FuncList:
         #ArrivalRateDict[func] = 0.00
         CurrMaskDict[func] = [0]*23
@@ -108,7 +108,7 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                             pass
                     #ArrivalRateDict['alu'] = NewArrDict['alu']
                     normal_dict = copy.deepcopy(CurrMaskDict)
-                    print("Now "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
+                    #print("Now "+str(CurrMaskDict)+" "+ str(time.time()),flush=True)
                     RedisMessageClient.publish('UpdateChannel',json.dumps(normal_dict))
                     if "omp" in FuncList or "vid" in FuncList or "rot" in FuncList or "mls" in FuncList or "mlt" in FuncList:
                         #Add function check to these two function later.

@@ -1,58 +1,108 @@
-# import numpy as np
-# import time
-# from collections import Counter
-#
-#
-# def generate_poisson_arrival_times(rate, duration, seed=100):
-#     np.random.seed(seed)  # 设置随机种子以保持结果的一致性
-#     times = []
-#     current_time = 0
-#     while current_time < duration:
-#         # 生成下一个事件的时间间隔
-#         interval = np.random.exponential(1 / rate)
-#         current_time += interval
-#         if current_time < duration:
-#             times.append(current_time)
-#     return times
-#
-#
-# def calculate_rates_per_tenth_second(times, start_time, duration):
-#     # 将时间戳转换为从开始时间算起的相对十分之一秒数
-#     relative_tenths = [int((time - start_time)) for time in times]
-#     # 计算每十分之一秒的事件数量
-#     count_per_tenth = Counter(relative_tenths)
-#     # 创建结果列表，包含每十分之一秒的事件数量
-#     rates_per_tenth_second = [count_per_tenth.get(tenth, 0) for tenth in range(int(duration))]
-#     return rates_per_tenth_second
-#
-#
-# if __name__ == '__main__':
-#     load = 400  # 事件/秒
-#     duration = 20  # 持续时间为20秒
-#     start_time = time.time()
-#     # 生成事件到达时间
-#     function_times = generate_poisson_arrival_times(load, duration)
-#     # 计算这些事件时间相对于起始时间的绝对时间
-#     function_times_adjusted = [start_time + t for t in function_times]
-#
-#     # 计算每0.1秒的事件速率
-#     rates_per_tenth_second = calculate_rates_per_tenth_second(function_times_adjusted, start_time, duration)
-#     #rates_per_second = [rate * 10 for rate in rates_per_tenth_second]
-#     # 打印每0.1秒的速率
-#     print("Rates per 0.1 second:", rates_per_tenth_second)
+from collections import defaultdict
+import math
 import time
+import uuid
+import asyncio
+from multiprocessing import Process
+import numpy as np
 
-# stack = []
-# for i in range(1,23):
-#     stack.append(6.7937 + 85.1613*i)
-# print(len(stack))
+# 有多少个model就define多少个send。
+broker_url = "http://broker-ingress.knative-eventing.svc.cluster.local/default/default"
+def enforce_activity_window(start_time, end_time, function_times):
+    """Filter function times to ensure they are within the activity window."""
+    return [t for t in function_times if start_time <= t <= end_time]
 
-import redis
+#function_list = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
+function_list = ["che","mls"]
+async def fetch(session, url, json_data, headers):
+    async with session.post(url, json=json_data, headers=headers) as response:
+        return await response.text()
+
+#async def continuous_request(url, function_times, headers_template):
+    # async with aiohttp.ClientSession() as session:
+    #     tasks = []
+    #     for idx, func_time in enumerate(function_times):
+    #         func_name = function_list[idx % len(function_list)]
+    #         json_data = {
+    #             "FuncName": func_name,
+    #             "ArrivalTime": time.time()
+    #         }
+    #         headers = headers_template.copy()
+    #         headers["Ce-Type"] = f"{func_name}msg"
+    #         wait_time = func_time - time.time()  # 计算当前时间到目标时间的差值
+    #         if wait_time > 0:
+    #             await asyncio.sleep(wait_time)  # 等待直到指定时间
+    #         task = asyncio.create_task(fetch(session, url, json_data, headers))
+    #         tasks.append(task)
+    #     responses = await asyncio.gather(*tasks, return_exceptions=True)
+        #return responses
+
+
+# async def run_async_tasks(function_times):
+#     headers_template = {
+#         "Ce-Id": str(uuid.uuid4()),
+#         "Ce-Specversion": "1.0",
+#         "Ce-Source": "/source/curlpod",
+#         "Content-Type": "application/json"
+#     }
+#     responses = await continuous_request(broker_url, function_times, headers_template)
+#     #print(responses)
+
+# def run_in_process(function_times):
+#     asyncio.run(run_async_tasks(function_times))
+
+def generate_poisson_arrival_times(rate, duration):
+    np.random.seed(100)  # 设置随机种子以保持结果的一致性
+    times = []
+    current_time = 0
+    while current_time < duration:
+            # 生成下一个事件的时间间隔
+        interval = np.random.exponential(1 / rate)
+        current_time += interval
+        if current_time < duration:
+            times.append(current_time)
+    return times
+clock = 0
+
+# def sendrate(RedisClusterRateClient):
+#     global clock
+#     if clock<len(RPS):
+#         #Change to dict, since no round robin?
+#         RedisClusterRateClient.publish('RateChannel', RPS[clock])
+#         clock +=1
+def count_requests_by_second(function_times):
+    counts = defaultdict(int)
+    for time_stamp in function_times:
+        # 因为时间戳是绝对时间，我们将其转换为相对于开始时间的秒数
+        second = math.floor(time_stamp - start_time)
+        counts[second] += 1
+    return dict(counts)
 
 if __name__ == '__main__':
-    RPS = [399, 390, 405, 455, 418, 423, 393, 380, 388, 380, 398, 381, 414, 417, 384, 358, 404, 411, 417, 417]
-    redis_host = '172.31.22.224'  # 替换为实际的节点IP,after starting all node and services.
-    RedisClusterRateClient = redis.Redis(host=redis_host, port=32526,decode_responses=True)
-    for i in range(len(RPS)):
-        RedisClusterRateClient.publish('RateChannel',RPS[i])
-        time.sleep(1)
+    load = 5  # 事件/秒
+    duration = 5  # 持续时间为20秒
+    # 函数用于生成符合泊松过程的事件到达时间
+    function_times = generate_poisson_arrival_times(load, duration)
+    processes = []
+    #scheduler = BackgroundScheduler()
+    #RedisClusterRateClient = redis.Redis(host='clsrt.default.svc.cluster.local', port=6379, decode_responses=True)
+    #interval = 2000  # Assume this is some meaningful interval
+    # Sample request times for demonstration, in real scenario replace with actual times
+    start_time = time.time()
+    end_time = start_time + duration
+    abs_times = [start_time + t for t in function_times]
+    abs_times = enforce_activity_window(start_time, end_time, abs_times)
+    #scheduler.add_job(sendrate,'interval',seconds=1,args = (RedisClusterRateClient,))
+    #scheduler.start()
+    request_counts = count_requests_by_second(abs_times)
+    print("Requests per second:", request_counts)
+    # for i in range(1):
+    #     p = Process(target=run_in_process, args=(abs_times,))
+    #     processes.append(p)
+    #     p.start()
+    #
+    # for p in processes:
+    #     p.join()
+    #scheduler.shutdown()
+
+
