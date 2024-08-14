@@ -134,6 +134,7 @@ def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProce
                 ControlList[i].signstop()
                 RunningProcessesDict[i].terminate()
                 RunningProcessesDict[i].join()
+                ControlList[i].signstart()
                 np = mp.Process(target=workerprocess, args=(RedisDataClient, FuncName, ControlList[i], i, sum(NewMask),))
                 np.start()
                 RunningProcessesDict[i] = np
