@@ -40,6 +40,10 @@ import cv2
 import collections
 import uuid
 #Class
+torch.set_num_threads(1)
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
 class ControlSign:
     def __init__(self):
         self.local_sign = True
@@ -197,7 +201,7 @@ def MLserve():
         urllib.request.urlretrieve(labels_url, labels_path)
     with open(labels_path, 'r') as f:
         labels = json.load(f)
-    input_dir = '/usr/src/app/Res/'  # 修改为包含图片的目录路径
+    input_dir = './Res/'  # 修改为包含图片的目录路径
     image_list = os.listdir(input_dir)
     generation_count = 1
     total_time = 0.0
@@ -394,6 +398,10 @@ def workerprocess(RedisDataClient,Signal,ID,RedisMetricUpdateClient):
     #You could modify scale here
     #Assuming Data has SLO also.
     os.sched_setaffinity(0, {23})
+    torch.set_num_threads(1)
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['NUMEXPR_NUM_THREADS'] = '1'
     # Do everything locally and then aggregation.
     # You need to tell the TP and your execution latency to us.
     # For TP, we keep the local print way. This could at least save 5% Peak Throughput.

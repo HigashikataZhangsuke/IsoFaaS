@@ -1,0 +1,4 @@
+psutil
+numpy
+redis
+pillow

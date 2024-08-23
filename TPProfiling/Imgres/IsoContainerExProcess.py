@@ -8,16 +8,27 @@
 #To close them, use a signal sign here, which is controlled by the manager.
 #We still could use the MXFaaS's way of tunning resource amount. two Slo bounds for shareable to get the results.
 #Assuming All worker are on CPU 0-22. CPU 23 is assign to the Shareable part.
-import logging
-import random
-import redis
-import time
-import multiprocessing as mp
 import os
-import json
-import threading
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+import time
 from PIL import Image
+import numpy as np
+import random
+import json
+import numpy as np
+Image.MAX_IMAGE_PIXELS = None
+import multiprocessing as mp
+np.seterr(all='warn')
+import logging
+import redis
+import threading
+
 #Class
+Image.MAX_IMAGE_PIXELS = None
 class ControlSign:
     def __init__(self):
         self.local_sign = True
@@ -41,45 +52,58 @@ def setup_logging(process_id):
     logger.addHandler(file_handler)
     return logger
 
-def imgres():
-    input_dir = './Res/'  # Modify this to your image directory
-    image_list = os.listdir(input_dir)
-    generation_count = 1
+def resize_image(image_array, scale_x, scale_y):
+    # ?????????
+    rows, cols = image_array.shape[:2]
+    
+    # ??????
+    scaling_matrix = np.array([[scale_x, 0], [0, scale_y]])
 
+    # ??????,????????? (x, y)
+    coords = np.indices((rows, cols)).reshape(2, -1)  # 2 x (rows * cols)
+
+    # ????????????
+    new_coords = np.dot(scaling_matrix, coords)  # 2 x (rows * cols)
+    
+    # ?????????,????????????
+    new_rows = int(rows * scale_y)
+    new_cols = int(cols * scale_x)
+
+    # ????????????
+    new_coords[0] = np.clip(new_coords[0], 0, new_rows - 1)
+    new_coords[1] = np.clip(new_coords[1], 0, new_cols - 1)
+
+    # ????????
+    new_image_array = np.zeros((new_rows, new_cols, image_array.shape[2]), dtype=image_array.dtype)
+
+    # ?? np.dot ????,?????? RGB ??
+    for channel in range(1):
+        # ??????????????
+        new_image_array[new_coords[0].astype(int), new_coords[1].astype(int), channel] = image_array[coords[0], coords[1], channel]
+    
+    return new_image_array
+
+def imgres():
+    #os.sched_setaffinity(0, {6})
+    generation_count = 10
+    ls = []
     total_time = 0.0
-    list = []
+    inputlist = []
     for i in range(generation_count):
-        input_image_name = image_list[i % len(image_list)]
-        input_image_path = os.path.join(input_dir, input_image_name)
-        start_time = time.time()
-        # Open and process the image
+        input_image_path ='./Res/large_image_'+str(i)+'.png'#str(i)#
         image = Image.open(input_image_path)
-        width, height = image.size
-        # Set the crop area
-        left = 4
-        top = height / 5
-        right = left + width / 2
-        bottom = 3 * height / 5
-        im1 = image.crop((left, top, right, bottom))
-        # Perform multiple resize operations to increase memory bandwidth usage
-        for j in range(10):
-            new_width = width * (j + 1)
-            new_height = height * (j + 1)
-            im1 = im1.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        # Save the processed mage to a specified path
-        list.append(im1)
+        image_array = np.array(image)
+        resized_image_array = resize_image(image_array, 1.1, 1.1)
+        resized_image = Image.fromarray(resized_image_array.astype(np.uint8))
+        start_time = time.time()
+        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        #flipped_image.save(output_image_path)
         end_time = time.time()
         # Calculate elapsed time
         elapsed_time = end_time - start_time
         total_time += elapsed_time
-
     average_time = total_time / generation_count
-    for i in range(len(list)):
-        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
-        list[i].save(output_image_path)
-
     return {"AverageExecutionTime": average_time}
-
 
 #Basic execution unit, process. Thinking maybe just use exec for everyone? maybe
 def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
@@ -108,14 +132,14 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             st = time.time()
             result = imgres()
             et = time.time()
-            Totalcnt += 1
+            Totalcnt += 10
+            #print(et-st,flush=True)
             #print("processing",flush=True)
-            if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
-                lctime = time.time()
-                Totalprev = Totalcnt
-            # logger.info(
-            #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
+            #if et-lctime > 10:
+                #logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
+                #lctime = time.time()
+                #Totalprev = Totalcnt
+            logger.info(f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
 #The controller to tune worker and resource
 def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProcessesDict):
@@ -137,12 +161,14 @@ def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProce
                 ControlList[i].signstop()
                 RunningProcessesDict[i].terminate()
                 RunningProcessesDict[i].join()
+                del RunningProcessesDict[i]
                 CPUMASK[i] = 0
         else:
             if NewMask[i] == 1:
                 ControlList[i].signstop()
                 RunningProcessesDict[i].terminate()
                 RunningProcessesDict[i].join()
+                del RunningProcessesDict[i]
                 ControlList[i].signstart()
                 np = mp.Process(target=workerprocess, args=(RedisDataClient, FuncName, ControlList[i], i, sum(NewMask),))
                 np.start()
@@ -160,16 +186,29 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     Control_Sign = []
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
+    #[1,4,8,12,16,20
+    #for timercnt in range(1,23):
+    #    NewMask = [0] * 23
+        #indices = random.sample(range(23), timercnt)
+    #    for index in range(timercnt):
+    #        NewMask[index] = 1
 
-    for timercnt in range(23):
-        NewMask = [0]*23
-        for index in range(timercnt+1):
-            NewMask[index] = 1
-        controller(RedisDataClient, FuncName, Control_Sign,
+    # for timercnt in range(23):
+    NewMask = [0]*23
+    for index in range(8,20):
+        NewMask[index] = 1
+    #NewMask[5] = 1
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:1={cpu_list}'], check=True)
+    #NewMask = [0]*23
+    #NewMask[8] = 1
+    controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
-        #print(NewMask, flush=True)
+        #print(len(RunningProcessesDict), flush=True)
         #print(CPUMASK, flush=True)
-        time.sleep(40)
+    time.sleep(40)
+    #time.sleep(1000000)
+    time.sleep(50)
     Listening = True
     while Listening:
         #Add shutdown here.

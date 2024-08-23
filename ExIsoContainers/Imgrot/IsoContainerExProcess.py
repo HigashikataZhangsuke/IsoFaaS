@@ -45,42 +45,73 @@ def setup_logging(process_id):
 def imgrot():
     input_dir = './Res/'  # Modify this to your image directory
     image_list = os.listdir(input_dir)
-    generation_count = 100
-
+    generation_count = 10
+    ls = []
     total_time = 0.0
-    list = []
     for i in range(generation_count):
-        input_image_name = image_list[i % len(image_list)]
+        input_image_name = random.choice(image_list)#image_list[i % len(image_list)]
         input_image_path = os.path.join(input_dir, input_image_name)
+        #img = Image.open(input_image_path)
+        #grayscale_img = img.convert('L')
+        #img = grayscale_img.filter(ImageFilter.GaussianBlur(radius=15))
+        #width, height = img.size
+        #img = Image.open(image_path)
+        #img_array = np.array(img)
 
+    # Rotate the image using NumPy
+        #rotated_array = np.rot90(img_array)
+
+    # Convert the NumPy array back to a PIL Image and return it
+        #rotated_image = Image.fromarray(rotated_array)
+    # Create a new image with inverted dimensions
+        #new_img = Image.new(img.mode, (height, width))
+        #for x in range(width):
+        #    for y in range(height):
+        #       pixel = img.getpixel((x, y))
+         #       new_img.putpixel((y, width - 1 - x), pixel)
+    #
         start_time = time.time()
 
         # Open and process the image
         image = Image.open(input_image_path)
-
-        im1 = image.transpose(Image.ROTATE_90)
-        im2 = im1.transpose(Image.ROTATE_90)
-        im3 = im2.transpose(Image.ROTATE_90)
-        list.append(im3)
-        # im3.save(proc_image_path)
-        # Save the processed image to a specified path
-        # output_image_path = f"/home/ubuntu/Resultsbin/output_{os.getpid()}_{i}.jpg"
-        # im3.save(proc_image_path)
+        img_width, img_height = image.size
+    #    grayscale_image = (image.convert('HSV')).convert('L')
+    #    image = grayscale_image.filter(ImageFilter.GaussianBlur(radius=15))
+        #mage = image.transpose(Image.ROTATE_90)
+        block_size = 2000
+        num_blocks = 20
+        
+        for i in range(num_blocks):
+            # Randomly select a block to rotate
+            x = random.randint(0, img_width - block_size)
+            y = random.randint(0, img_height - block_size)
+            block = image.crop((x, y, x + block_size, y + block_size))
+            
+            # Rotate the block randomly
+            random_angle = random.uniform(-180, 180)
+            rotated_block = block.rotate(random_angle, expand=True)
+            
+            # Place the rotated block back (optional, for demonstration)
+            image.paste(rotated_block, (x, y))
+        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        image.save(output_image_path)
+          # Generate a random rotation angle
+        #rotated_image = image.rotate(random_angle, resample=Image.NEAREST, expand=True)
+        #output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        #rotated_image.save(output_image_path)
+        #ls.append(image)
         end_time = time.time()
 
         # Calculate elapsed time
         elapsed_time = end_time - start_time
         total_time += elapsed_time
+    #for i in range(len(ls)):
+        
+        #ls[i].
 
     average_time = total_time / generation_count
-    # output_image_path = f"/home/ubuntu/Resultsbin/output_{os.getpid()}_{i}.jpg"
-    # im3.save(output_image_path)
-    # Check if running on CPU 0-3 before writing to the file
-
-    for i in range(len(list)):
-        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
-        list[i].save(output_image_path)
     return {"AverageExecutionTime": average_time}
+
 
 
 #Basic execution unit, process. Thinking maybe just use exec for everyone? maybe
@@ -108,7 +139,7 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId):
             st = time.time()
             result = imgrot()
             et = time.time()
-            Totalcnt += 1
+            Totalcnt += 10
             logger.info(
                 f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
             #print(Totalcnt,flush=True)
@@ -146,12 +177,12 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
         Control_Sign.append(ControlSign())
 
     #Simply Init here.
-    # NewMask = [0]*23
-    # for i in range(5):
-    #     NewMask[i] = 1
+    NewMask = [0]*23
+    for i in range(10,12):
+         NewMask[i] = 1
     # #Inithere
-    # controller(RedisDataClient, FuncName, Control_Sign,
-    #            NewMask, CPUMASK,RunningProcessesDict,)
+    controller(RedisDataClient, FuncName, Control_Sign,
+                NewMask, CPUMASK,RunningProcessesDict,)
     Listening = True
     while Listening:
         #Add shutdown here.

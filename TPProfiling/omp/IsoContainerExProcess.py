@@ -90,9 +90,10 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             result = omp()
             et = time.time()
             Totalcnt += 1
+            print(et-st,flush=True)
             #print("processing",flush=True)
-            if et-lctime > 15:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
+            if et-lctime > 5:
+                logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
                 lctime = time.time()
                 Totalprev = Totalcnt
             # logger.info(
@@ -143,15 +144,41 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
 
-    for timercnt in range(23):
+    for timercnt in [12]:
         NewMask = [0]*23
-        for index in range(timercnt+1):
+        start_index = 23 - timercnt
+        end_index = 23   # 计算结束索引位置
+
+    # 从第23个CPU（索引为22）开始，向前数timercnt个位置，将其设置为1
+        for index in range(start_index, end_index):
             NewMask[index] = 1
+    #NewMask = [0]*23
+    #for i in range(3,23):
+    #    NewMask[i] = 1
+    #print(NewMask, flush=True)
+    #controller(RedisDataClient, FuncName, Control_Sign,NewMask, CPUMASK,RunningProcessesDict,)
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:2={cpu_list}'], check=True)
         controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
+        
+        #print(CPUMASK, flush=True)
+        time.sleep(45)
+
+    #for timercnt in range(23):
+    #    NewMask = [0]*23
+    #    for index in range(timercnt+1):
+    #        NewMask[index] = 1
+    #NewMask[5] = 1
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:1={cpu_list}'], check=True)
+    #NewMask = [0]*23
+    #NewMask[8] = 1
+    #    controller(RedisDataClient, FuncName, Control_Sign,
+    #                NewMask, CPUMASK,RunningProcessesDict,)
         #print(NewMask, flush=True)
         #print(CPUMASK, flush=True)
-        time.sleep(60)
+    #    time.sleep(30)
     Listening = True
     while Listening:
         #Add shutdown here.

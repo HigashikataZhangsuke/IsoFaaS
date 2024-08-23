@@ -1,5 +1,6 @@
 import time
 import pyaes
+os.sched_setaffinity(0, {6})
 def alu():
     input_file = './generated_strings_500.txt'
     with open(input_file, 'r') as f:
@@ -22,15 +23,6 @@ def alu():
     average_time = (end - start) / generation_count
     return {"average_execution_time": average_time}
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
-
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()

@@ -50,8 +50,8 @@ def receive_event():
     return 'OK', 200
 
 if __name__ == "__main__":
-    AffinityId = random.randint(24, 47)
-    os.sched_setaffinity(0, {AffinityId})
+    #AffinityId = random.randint(24, 47)
+    #os.sched_setaffinity(0, {AffinityId})
     manager = Manager()
     # 使用 Manager 创建一个共享的 Value
     counter = manager.Value('f', 1.000)

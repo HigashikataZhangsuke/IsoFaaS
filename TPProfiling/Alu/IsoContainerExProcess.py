@@ -16,7 +16,7 @@ import multiprocessing as mp
 import os
 import json
 import threading
-
+from logging.handlers import QueueHandler
 #Class
 class ControlSign:
     def __init__(self):
@@ -70,7 +70,6 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
     # Also to see if it's possible to use time.time() less.
     logger = setup_logging(os.getpid())
     lctime = time.time()
-    logger.info(f"P+ {os.getpid()}+{lctime}+ starts logging")
     Totalcnt = 0
     Totalprev = 0
     while Signal.local_sign:
@@ -78,26 +77,30 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
         #print(result,flush=True)
         if result:
             _, datastr = result
+            #TT = 10
            # print(data,flush=True)
             data = json.loads(datastr)
             arrtime = data['ArrivalTime']
             st = time.time()
+            #while TT>0:
             result = alu()
             et = time.time()
             Totalcnt += 1
+            #print(et-st,flush=True)
             #print("processing",flush=True)
-            if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
-                lctime = time.time()
-                Totalprev = Totalcnt
-            # logger.info(
-            #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
+            #if et-lctime > 5:
+            #    logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str((et-st)))
+            #    lctime = time.time()
+            #    Totalprev = Totalcnt
+            logger.info(f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
 #The controller to tune worker and resource
 def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProcessesDict):
     #Controller is responsible for Tunning resource avaliablity based on the instruction from listener.
     #Ecerything is based on the CPUList the IsoInvoker given(Scale Up/Down)
     #Updateing here
+    #logger = logging.getLogger("Controller")
+    #logger.addHandler(QueueHandler(queue))
     for i in range(23):
             #Start new processes on these CPUs
         if CPUMASK[i] != NewMask[i]:
@@ -114,7 +117,18 @@ def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProce
                 RunningProcessesDict[i].terminate()
                 RunningProcessesDict[i].join()
                 CPUMASK[i] = 0
-
+        else:
+            if NewMask[i] == 1:
+                ControlList[i].signstop()
+                RunningProcessesDict[i].terminate()
+                RunningProcessesDict[i].join()
+                ControlList[i].signstart()
+                np = mp.Process(target=workerprocess, args=(RedisDataClient, FuncName, ControlList[i], i, sum(NewMask),))
+                np.start()
+                RunningProcessesDict[i] = np
+                #just Change the num
+            else:
+                pass
 #The listener who are subscribe and trigger manager to tune workers
 def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcessesDict):
     #Init the connection to the IsoInvoker
@@ -125,17 +139,14 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     Control_Sign = []
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
-
-    for timercnt in range(23):
-        NewMask = [0]*23
-        for index in range(timercnt+1):
-            NewMask[index] = 1
-        controller(RedisDataClient, FuncName, Control_Sign,
+    #for timercnt in range(23):
+    NewMask = [0]*23
+    for index in range(1):
+        NewMask[index] = 1
+    controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
-        print(NewMask, flush=True)
-        print(CPUMASK, flush=True)
-        time.sleep(30)
-
+        #time.sleep(30)
+    time.sleep(30)
     Listening = True
     while Listening:
         #Add shutdown here.
@@ -185,3 +196,4 @@ if __name__ == '__main__':
     L.start()
     #Join will only finish when you shutdown the container.
     L.join()
+

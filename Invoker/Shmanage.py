@@ -4,7 +4,7 @@ import json
 def sendratio(ArrivalRate,ProfilingDataTp,CurrMask,Redisflaskclient,FuncList):
     # Arrivalrate: a dict stores function's arrival rate. If it is zero means not an alive funtion
     #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-    FuncList = ["mls", "che"]
+    FuncList = ["vid","mls"]
     Ratio = {}
     for FuncName in FuncList:
         Ratio[FuncName] = ProfilingDataTp[FuncName][sum(CurrMask[FuncName])]/ArrivalRate[FuncName]

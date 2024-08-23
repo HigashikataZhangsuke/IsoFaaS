@@ -57,7 +57,7 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
         AllCPUList.append(1)
     #AllCPUList[6] = 0
     #FuncList = ["alu", "omp", "pyae", "che", "res", "rot", "mls", "mlt", "vid", "web"]
-    FuncList = ["che", "mls"]
+    FuncList = ["vid","mls"]
     for func in FuncList:
         #ArrivalRateDict[func] = 0.00
         CurrMaskDict[func] = [0]*23
@@ -80,11 +80,11 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                     # You got a message passing data
                     #print(message, flush=True)
                     #RateDict = json.loads(message['data'])
-                    Rate = float(message['data'])
+                    Rate = json.loads(message['data'])
                     #print("Rate is " + str(Rate),flush = True)
                     #NewArrDict = copy.deepcopy(ArrivalRateDict)
                     for func in FuncList:
-                        NewArrDict[func] = Rate
+                        NewArrDict[func] = Rate[func]
                     #print(NewArrDict)
                     # For the shutdown message, we simply set the CPUMASK to all zero(If we still keep the container alive could live later, Currently shut down)
                     #if ID in RateDict:
@@ -92,6 +92,7 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                         #Just do the new mask assign all the time? should so. only do this for functions with rate changed.
                     #    NewArrDict = RateDict[ID]
                     #    loghld.info(f"This interval ends at {time.time()} and with Mask {CurrMaskDict}")
+                    #print(NewArrDict,flush=True)
                     for func in NewArrDict:
                         #print(NewArrDict[func],flush=True)
                         #print(ProfilingDataTp[func][sum(CurrMaskDict[func])],flush=True)
@@ -103,6 +104,11 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                             Exmanage.GetNewMask(CurrMaskDict,func,"ScaleUp",AllCPUList,NewArrDict,ProfilingDataTp,ProflingDataConsum,Bound,Clusterpolicy)
                         elif NewArrDict[func] < ProfilingDataTp[func][sum(CurrMaskDict[func])]:
                             #print("trigger down", flush=True)
+                            #if (sum(CurrMaskDict[func])==0):
+                              #Still Init
+                                #for i in range(23):
+                                    
+                            #else:
                             Exmanage.GetNewMask(CurrMaskDict, func, "ScaleDown", AllCPUList, NewArrDict,ProfilingDataTp, ProflingDataConsum, Bound, Clusterpolicy)
                         else:
                             pass
@@ -112,7 +118,7 @@ def LListener(RedisClusterRateClient,ArrivalRateDict, CurrMaskDict, AllCPUList,I
                     RedisMessageClient.publish('UpdateChannel',json.dumps(normal_dict))
                     if "omp" in FuncList or "vid" in FuncList or "rot" in FuncList or "mls" in FuncList or "mlt" in FuncList:
                         #Add function check to these two function later.
-                        Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict)
+                        Applymba.DynamicAllocation(ProflingDataConsum,CurrMaskDict,FuncList)
                         Applymba.DynamicLinkcore(CurrMaskDict,FuncList)
                     Shmanage.sendratio(NewArrDict,ProfilingDataTp,CurrMaskDict,RedisMessageClient,FuncList)
         pubsub.close()
@@ -131,15 +137,15 @@ if __name__ == '__main__':
                        'web': [2.9163835941556, 5.82302184321796, 8.75222684973552, 11.63225652933488, 14.65030025466525, 17.53308522683832, 20.51588275978787, 23.41929277075264, 26.39878389492975, 29.2153434772557, 32.11549510096807, 35.159181422141884, 38.051598625416226, 41.06311608391608, 43.998386493089704, 46.91594221054928, 49.73530530598644, 52.57892500192782, 55.581964866899135, 58.561583779160806, 61.28284444297659, 64.01699521974746, 65.11201383587999],
                        'che': [0.147435121516629, 0.29417800863147, 0.439861735699275, 0.584248684826196, 0.73008273601669, 0.8760912161250061, 1.02171621197303, 1.171930737668576, 1.317174383153556, 1.45964718666697, 1.606214730825694, 1.7513366422641599, 1.895039249218193, 2.0424875915593517, 2.186834065005885, 2.32985989930952, 2.475659386277264, 2.6224408071844203, 2.766434760892711, 2.9037482585653, 3.0502915668463557, 3.1558408021960602, 3.2800005630494087]}
     ProflingDataConsum = {'alu':[1,5,1000,1],
-                        'omp':[1,6200,1000,1],
+                        'omp':[1,24473,1000,1],
                         "pyae":[1,15,1000,1],
-                        "che":[1,2600,1000,1],
+                        "che":[1,12000,1000,1],
                           "res":[1,1000,1000,1],
                           "rot":[1,500,1000,1],
-                          "mls":[1,4000,1000,1],
+                          "mls":[1,6000,1000,1],
                           "mlt":[1,5,1000,1],
-                          "vid":[1,2000,1000,1],
-                          "web":[1,30,1000,1]}
+                          "vid":[1,8000,1000,1],
+                          "web":[1,1300,1000,1]}
     ProfilingLatency = {'alu':0.0111907,"pyae":0.28206,"che":5.42909, "res":0.8005, "rot":0.7840, "mls":0.437876, "mlt":7.0979 , "vid":1.348898, "web":0.30621425,"omp":4.141488}
     #This will be the same
     redis_host = '172.31.22.224'  # 替换为实际的节点IP,after starting all node and services.

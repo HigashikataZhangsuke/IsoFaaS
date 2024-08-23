@@ -2,7 +2,9 @@ import six
 from chameleon import PageTemplate
 import time
 import json
-BIGTABLE_ZPT = """\
+
+def alu():
+    BIGTABLE_ZPT = """\
 <table xmlns="http://www.w3.org/1999/xhtml"
 xmlns:tal="http://xml.zope.org/namespaces/tal">
 <tr tal:repeat="row python: options['table']">
@@ -13,9 +15,7 @@ tal:content="python: d" />
 </td>
 </tr>
 </table>""" % six.text_type.__name__
-
-def alu():
-    input_file = './Che/tables_data.txt'
+    input_file = '/home/ubuntu/IsoFaaS/Profiling/Che/tables_data.txt'
     with open(input_file, 'r') as f:
         tables = [json.loads(line) for line in f]
     tmpl = PageTemplate(BIGTABLE_ZPT)
@@ -30,14 +30,13 @@ def alu():
     average_time = (end - start) / generation_count
     return {"average_execution_time": average_time}
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
-print(sum(listoftheresult)/len(listoftheresult))
-print("Now ready for BW Tests")
-while True:
+# Pre-run to stabilize performance
+for _ in range(10):  # Number of pre-runs can be adjusted
     alu()
+
+# Profile a single run after stabilization
+from line_profiler import LineProfiler
+profiler = LineProfiler()
+alu_profiled = profiler(alu)
+result = alu_profiled()
+profiler.print_stats()

@@ -21,7 +21,7 @@ RedisMessageClient = redis.Redis(host='invokermessagesvc.default.svc.cluster.loc
 def Listener(Ratio,MsgClient):
     global FuncName
     pubsub = MsgClient.pubsub()
-    pubsub.subscribe(['RatioChannel'])
+    pubsub.subscribe('RatioChannel')
     Listening = True
     while Listening:
         # Add shutdown here.
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     manager = Manager()
     # 使用 Manager 创建一个共享的 Value
     counter = manager.Value('f', 1.000)
-    L = threading.Thread(target=Listener, args=(counter,RedisMessageClient,))
-    L.start()
+    #L = threading.Thread(target=Listener, args=(counter,RedisMessageClient,))
+    #L.start()
     app.run(host='0.0.0.0', port=12346)
 

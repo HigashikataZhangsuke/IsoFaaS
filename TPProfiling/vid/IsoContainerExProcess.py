@@ -19,6 +19,7 @@ import threading
 import numpy as np
 import cv2
 #Class
+
 class ControlSign:
     def __init__(self):
         self.local_sign = True
@@ -44,7 +45,7 @@ def setup_logging(process_id):
 
 def vid():
     #It's OK since we think run locally and also use same data.
-    video_list = [f for f in os.listdir(f'./vid') if f.endswith('.mp4')]
+    video_list = [f for f in os.listdir(f'./vid') if f.endswith('.avi')]
     generation_count = 1
 
     total_time = 0.0
@@ -59,7 +60,7 @@ def vid():
         width = int(video.get(3))
         height = int(video.get(4))
         fourcc = cv2.VideoWriter_fourcc(*'MPEG')
-        out = cv2.VideoWriter('./output_' + str(os.getpid()) + str(random.randint(1, 1000)) + '.avi', fourcc,
+        out = cv2.VideoWriter('./result/output_' + str(os.getpid()) + str(random.randint(1, 1000)) + '.avi', fourcc,
                               120.0, (width, height))
 
         # 用于存储所有灰度帧的列表
@@ -87,7 +88,6 @@ def vid():
 
     average_time = total_time / generation_count
     return average_time
-
 
 #Basic execution unit, process. Thinking maybe just use exec for everyone? maybe
 def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
@@ -117,13 +117,15 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             result = vid()
             et = time.time()
             Totalcnt += 1
+            #print(et-st,flush=True)
             #print("processing",flush=True)
-            if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
-                lctime = time.time()
-                Totalprev = Totalcnt
-            # logger.info(
-            #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
+            #if et-lctime > 20:
+                #logger.info("PKTP of CPU num in past around 5 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
+                #print("PKTP of CPU num in past around 5 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)),flush=True)          
+            #    logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
+           #     lctime = time.time()
+            #    Totalprev = Totalcnt
+            logger.info(f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
 #The controller to tune worker and resource
 def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProcessesDict):
@@ -168,16 +170,33 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     Control_Sign = []
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
-
-    for timercnt in range(23):
-        NewMask = [0]*23
-        for index in range(timercnt+1):
-            NewMask[index] = 1
-        controller(RedisDataClient, FuncName, Control_Sign,
+    #for timercnt in [12]:
+    #for timercnt in range(1,23):
+    NewMask = [0]*23
+    for index in range(11,18):
+        NewMask[index] = 1
+    #    print(NewMask,flush=True)
+    #NewMask[5] = 1
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:1={cpu_list}'], check=True)
+    #NewMask = [0]*23
+    #NewMask[8] = 1
+    controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
+        #print(sum(NewMask), flush=True)
+        #print(CPUMASK, flush=True)
+    time.sleep(50)
+    #NewMask = [0]*23
+    #NewMask[7] = 1
+    #for timercnt in range(23):
+    #    NewMask = [0]*23
+    #    for index in range(timercnt+1):
+    #        NewMask[index] = 1
+    #    controller(RedisDataClient, FuncName, Control_Sign,NewMask, CPUMASK,RunningProcessesDict,)
         #print(NewMask, flush=True)
         #print(CPUMASK, flush=True)
-        time.sleep(40)
+    #    time.sleep(30)
+    time.sleep(50)
     Listening = True
     while Listening:
         #Add shutdown here.

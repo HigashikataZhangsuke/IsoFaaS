@@ -127,12 +127,12 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
         Control_Sign.append(ControlSign())
 
     #Simply Init here.
-    # NewMask = [0]*23
-    # for i in range(5):
-    #     NewMask[i] = 1
+    NewMask = [0]*23
+    for i in range(2):
+         NewMask[i] = 1
     # #Inithere
-    # controller(RedisDataClient, FuncName, Control_Sign,
-    #            NewMask, CPUMASK,RunningProcessesDict,)
+    controller(RedisDataClient, FuncName, Control_Sign,
+                NewMask, CPUMASK,RunningProcessesDict,)
     Listening = True
     while Listening:
         #Add shutdown here.

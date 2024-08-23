@@ -9,24 +9,23 @@
 #To close them, use a signal sign here, which is controlled by the manager.
 #We still could use the MXFaaS's way of tunning resource amount. two Slo bounds for shareable to get the results.
 #Assuming All worker are on CPU 0-22. CPU 23 is assign to the Shareable part.
+import os
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
 import logging
 import random
 import redis
 import time
 import multiprocessing as mp
-import os
 import json
 import threading
-import torch
-from torchvision import models, transforms
-from PIL import Image
+import subprocess
+import numpy as np
 #Class
-torch.set_num_threads(1)
+logging.getLogger('torch').setLevel(logging.ERROR)
 
-# 限制 MKL 和 OpenMP 使用的线程数
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['NUMEXPR_NUM_THREADS'] = '1'
+
 class ControlSign:
     def __init__(self):
         self.local_sign = True
@@ -50,48 +49,30 @@ def setup_logging(process_id):
     logger.addHandler(file_handler)
     return logger
 
+        
 def MLserve():
-    model = models.resnet50(pretrained=True)
-    model.eval()  # 设置为评估模式
-    # 下载ImageNet标签文件
-    labels_url = 'https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json'
-    labels_path = 'imagenet_labels.json'
-    if not os.path.exists(labels_path):
-        import urllib.request
-        urllib.request.urlretrieve(labels_url, labels_path)
-    with open(labels_path, 'r') as f:
-        labels = json.load(f)
-    input_dir = '/usr/src/app/Res/'  # 修改为包含图片的目录路径
-    image_list = os.listdir(input_dir)
-    generation_count = 1
-    total_time = 0.0
-    for i in range(generation_count):
-        input_image_name = image_list[i % len(image_list)]
-        image_path = os.path.join(input_dir, input_image_name)
-        start_time = time.time()
-        # 定义图像预处理过程
-        preprocess = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-        # 读取并处理图像
-        image = Image.open(image_path)
-        img_tensor = preprocess(image)
-        img_tensor = img_tensor.unsqueeze(0)  # 批量化
-        # 进行推断
-        with torch.no_grad():
-            outputs = model(img_tensor)
-            probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
-            top5_prob, top5_catid = torch.topk(probabilities, 5)
-        inference = ''
-        for j in range(top5_prob.size(0)):
-            inference += 'With prob = %.5f, it contains %s. ' % (top5_prob[j].item(), labels[top5_catid[j].item()])
-        exec_time = time.time() - start_time
-        total_time += exec_time
-    average_time = total_time / generation_count
-    return {"result": inference, "average_execution_time": average_time}
+    n = 33000
+    graph=np.load("./regular_graph_adj_matrix.npy")
+    # ??,???????????
+    #out_degree = np.sum(graph, axis=1)
+    out_degree = 10
+    # ???PageRank?,????
+    rank = np.ones(n) / n
+
+    # ??PageRank?
+    for _ in range(1):
+        new_rank = np.ones(n) * 0.15 / n  # ???????PageRank?
+        for i in range(10):
+            # ?????????????PageRank??
+            for j in range(n):
+                if graph[j, i] == 1:
+                    new_rank[i] += 0.85 * rank[j] /out_degree  # ????
+
+
+        rank = new_rank
+
+    return rank
+
 
 
 #Basic execution unit, process. Thinking maybe just use exec for everyone? maybe
@@ -107,7 +88,7 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
     # Also to see if it's possible to use time.time() less.
     logger = setup_logging(os.getpid())
     lctime = time.time()
-    logger.info(f"P+ {os.getpid()}+{lctime}+ starts logging")
+    #logger.info(f"P+ {os.getpid()}+{lctime}+ starts logging")
     Totalcnt = 0
     Totalprev = 0
     while Signal.local_sign:
@@ -121,10 +102,13 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             st = time.time()
             result = MLserve()
             et = time.time()
-            Totalcnt += 1
+            Totalcnt += 10
             #print("processing",flush=True)
             if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
+                logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 15 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
+
+                #logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
+                #print("PKTP of CPU num in past around 5 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)),flush=True)
                 lctime = time.time()
                 Totalprev = Totalcnt
             # logger.info(
@@ -173,16 +157,26 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     Control_Sign = []
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
-
-    for timercnt in range(23):
-        NewMask = [0]*23
-        for index in range(timercnt+1):
-            NewMask[index] = 1
-        controller(RedisDataClient, FuncName, Control_Sign,
+    #subprocess.run(['sudo', 'pqos', '-e', 'mba_max:2' + '=' + '922', '-r'], check=True)
+    #for timercnt in range(20,23):#[1,16,19,20,21,22]:#range(1,23):
+    NewMask = [0] * 23
+        #indices = random.sample(range(23), timercnt)
+    for index in range(20,23):
+        NewMask[index] = 1
+    #NewMask = [0]*23
+    #for i in range(3,23):
+    #    NewMask[i] = 1
+    #print(NewMask, flush=True)
+    #controller(RedisDataClient, FuncName, Control_Sign,NewMask, CPUMASK,RunningProcessesDict,)
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:2={cpu_list}'], check=True)
+    controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
-        #print(NewMask, flush=True)
+        
         #print(CPUMASK, flush=True)
-        time.sleep(40)
+    time.sleep(35)
+    
+    time.sleep(50)
     Listening = True
     while Listening:
         #Add shutdown here.

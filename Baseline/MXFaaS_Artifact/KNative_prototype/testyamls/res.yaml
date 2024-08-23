@@ -1,0 +1,19 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: res
+  namespace: default
+spec:
+  template:
+    spec:
+      containerConcurrency: 1000
+      containers:
+        - image: yzzhangllm/resmx:latest
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 3000
+            runAsNonRoot: true
+    metadata:
+      annotations:
+        autoscaling.knative.dev/target: "1000"
+        autoscaling.knative.dev/scale-to-zero-pod-retention-period: "1h"

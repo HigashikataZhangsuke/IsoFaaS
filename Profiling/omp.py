@@ -1,6 +1,8 @@
 import time
 import numpy as np
+import os
 from cython_omp import xtriad
+os.sched_setaffinity(0, {6})
 def alu():
     # It's OK since we think run locally and also use same data.
     STREAM_ARRAY_SIZE = 20000000
@@ -21,15 +23,7 @@ def alu():
         c += np.random.random(c.shape) * 1e-6
     return {"Ok": "done"}
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
 
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()

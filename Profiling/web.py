@@ -1,8 +1,10 @@
 import time
 import pandas as pd
 import os
+
+os.sched_setaffinity(0, {6})
 def alu():
-    input_dir = './MLT/'
+    input_dir = '/home/ubuntu/IsoFaaS/Profiling/MLT/'
     csv_list = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
     generation_count = 100
 
@@ -25,7 +27,7 @@ def alu():
                 df.at[j, 'Y'] += 1  # 更新Y列的值
 
         # 保存更新后的CSV文件
-        updated_csv_path = os.path.join('./results/', f'updated_{input_csv_name}')
+        updated_csv_path = os.path.join('/home/ubuntu/IsoFaaS/Profiling/results/', f'updated_{input_csv_name}')
         df.to_csv(updated_csv_path, index=False)
 
         # 结束计时
@@ -37,15 +39,6 @@ def alu():
 
     return {"average_execution_time": average_time}
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
-
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()

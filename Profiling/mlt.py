@@ -4,8 +4,9 @@ from sklearn.linear_model import LogisticRegression
 import joblib
 import pandas as pd
 import os
+os.sched_setaffinity(0, {6})
 def alu():
-    input_dir = './MLT/'
+    input_dir = '/home/ubuntu/IsoFaaS/Profiling/MLT/'
     csv_list = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
     generation_count = 100
 
@@ -29,7 +30,7 @@ def alu():
         end_time = time.time()
 
         # 保存模型到本地
-        model_filename = f"./results/logistic_regression_model_{os.getpid()}.pkl"
+        model_filename = f"/home/ubuntu/IsoFaaS/Profiling/results/logistic_regression_model_{os.getpid()}.pkl"
         joblib.dump(model, model_filename)
         execution_time = end_time - start_time
         total_time += execution_time
@@ -39,15 +40,6 @@ def alu():
     return {"AverageExecutionTime": average_time}
 
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
-
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()

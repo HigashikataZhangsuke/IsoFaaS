@@ -1,0 +1,6 @@
+psutil
+numpy
+redis
+pillow
+opencv-python
+

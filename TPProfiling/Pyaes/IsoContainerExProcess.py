@@ -92,13 +92,13 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             result = pyae()
             et = time.time()
             Totalcnt += 1
+            #print(et-st,flush=True)
             #print("processing",flush=True)
-            if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
-                lctime = time.time()
-                Totalprev = Totalcnt
-            # logger.info(
-            #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
+            #if et-lctime > 5:
+            #    logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
+            #    lctime = time.time()
+            #    Totalprev = Totalcnt
+            logger.info(f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
 #The controller to tune worker and resource
 def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProcessesDict):
@@ -144,15 +144,19 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
 
-    for timercnt in range(23):
-        NewMask = [0]*23
-        for index in range(timercnt+1):
-            NewMask[index] = 1
-        controller(RedisDataClient, FuncName, Control_Sign,
-                    NewMask, CPUMASK,RunningProcessesDict,)
+    #for timercnt in [15]:
+    NewMask = [0]*23
+    for index in range(2,4):
+        NewMask[index] = 1
+    #NewMask[5] = 1
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:1={cpu_list}'], check=True)
+    #NewMask = [0]*23
+    #NewMask[8] = 1
+    controller(RedisDataClient, FuncName, Control_Sign,NewMask, CPUMASK,RunningProcessesDict,)
         #print(NewMask, flush=True)
         #print(CPUMASK, flush=True)
-        time.sleep(40)
+    time.sleep(45)
     Listening = True
     while Listening:
         #Add shutdown here.

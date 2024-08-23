@@ -6,6 +6,7 @@ spec:
   containers:
   - name: curlcontainer
     image: yzzhangllm/curlpod:latest
+  restartPolicy: Never
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:

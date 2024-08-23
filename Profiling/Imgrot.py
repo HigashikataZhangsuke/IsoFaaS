@@ -1,8 +1,9 @@
 import time
 from PIL import Image
 import os
+os.sched_setaffinity(0, {6})
 def alu():
-    input_dir = './Res/'  # Modify this to your image directory
+    input_dir = '/home/ubuntu/IsoFaaS/Profiling/Res/'  # Modify this to your image directory
     image_list = os.listdir(input_dir)
     generation_count = 100
 
@@ -37,19 +38,11 @@ def alu():
     # Check if running on CPU 0-3 before writing to the file
 
     for i in range(len(list)):
-        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        output_image_path = f"/home/ubuntu/IsoFaaS/Profiling/results/output_{os.getpid()}_{i}.jpg"
         list[i].save(output_image_path)
     return {"AverageExecutionTime": average_time}
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
 
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()

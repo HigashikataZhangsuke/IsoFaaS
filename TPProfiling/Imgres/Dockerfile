@@ -7,8 +7,8 @@ RUN pip install psutil numpy redis pillow
 # 将当前目录内容复制到位于 /usr/src/app 的容器中
 COPY . .
 
-RUN mkdir results
 # 安装任何需要的包
+
 
 # 运行 Python 脚本时的命令
 CMD ["python", "./IsoContainerExProcess.py"]

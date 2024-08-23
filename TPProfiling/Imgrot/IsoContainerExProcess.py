@@ -8,16 +8,27 @@
 #To close them, use a signal sign here, which is controlled by the manager.
 #We still could use the MXFaaS's way of tunning resource amount. two Slo bounds for shareable to get the results.
 #Assuming All worker are on CPU 0-22. CPU 23 is assign to the Shareable part.
-import logging
-import random
-import redis
-import time
-import multiprocessing as mp
 import os
-import json
-import threading
-
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+import time
 from PIL import Image
+import numpy as np
+import random
+import json
+import numpy as np
+Image.MAX_IMAGE_PIXELS = None
+import multiprocessing as mp
+np.seterr(all='warn')
+import logging
+import redis
+import threading
+from PIL import Image, ImageFilter
+Image.MAX_IMAGE_PIXELS = None
+
 #Class
 class ControlSign:
     def __init__(self):
@@ -33,7 +44,7 @@ def setup_logging(process_id):
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     currtime = time.time()
     # 创建一个日志处理器，将日志输出到文件. Add time since there is a possibility that the process with same ID spawns.
-    log_filename = f'rotprocess_{process_id}+{currtime}.log'
+    log_filename = f'resprocess_{process_id}+{currtime}.log'
     file_handler = logging.FileHandler(log_filename)
     file_handler.setFormatter(formatter)
     # 创建一个日志记录器
@@ -42,44 +53,51 @@ def setup_logging(process_id):
     logger.addHandler(file_handler)
     return logger
 
+def rotate_image(image_array, angle):
+    angle_rad = np.deg2rad(angle)  # ????????
+    rotation_matrix = np.array([[np.cos(angle_rad), -np.sin(angle_rad)], 
+                                [np.sin(angle_rad),  np.cos(angle_rad)]])
+    
+    rows, cols = image_array.shape[:2]
+    
+    # ??????????,?????????
+    coords = np.indices((rows, cols)).reshape(2, -1)
+    coords_centered = coords - np.array([[rows // 2], [cols // 2]])
+
+    # ????????????
+    new_coords = np.dot(rotation_matrix, coords_centered)
+    new_coords = new_coords + np.array([[rows // 2], [cols // 2]])
+    new_coords = new_coords.astype(int)
+
+    # ?????????
+    rotated_image_array = np.zeros_like(image_array)
+
+    # ???????????
+    for channel in range(image_array.shape[2]):  # ????????
+        valid_coords = (new_coords[0] >= 0) & (new_coords[0] < rows) & (new_coords[1] >= 0) & (new_coords[1] < cols)
+        rotated_image_array[coords[0, valid_coords], coords[1, valid_coords], channel] = image_array[new_coords[0, valid_coords], new_coords[1, valid_coords], channel]
+    return rotated_image_array
+
 def imgrot():
-    input_dir = './Res/'  # Modify this to your image directory
-    image_list = os.listdir(input_dir)
-    generation_count = 100
-
+   # os.sched_setaffinity(0, {6})
+    generation_count = 1
+    ls = []
     total_time = 0.0
-    list = []
+    inputlist = []
     for i in range(generation_count):
-        input_image_name = image_list[i % len(image_list)]
-        input_image_path = os.path.join(input_dir, input_image_name)
-
-        start_time = time.time()
-
-        # Open and process the image
+        input_image_path ='./Res/large_image_'+str(i)+'.png'
         image = Image.open(input_image_path)
-
-        im1 = image.transpose(Image.ROTATE_90)
-        im2 = im1.transpose(Image.ROTATE_90)
-        im3 = im2.transpose(Image.ROTATE_90)
-        list.append(im3)
-        # im3.save(proc_image_path)
-        # Save the processed image to a specified path
-        # output_image_path = f"/home/ubuntu/Resultsbin/output_{os.getpid()}_{i}.jpg"
-        # im3.save(proc_image_path)
+        image_array = np.array(image)
+        flipped_image_array = rotate_image(image_array, 180)
+        flipped_image = Image.fromarray(flipped_image_array.astype(np.uint8))
+        start_time = time.time()
+        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
+        #flipped_image.save(output_image_path)
         end_time = time.time()
-
         # Calculate elapsed time
         elapsed_time = end_time - start_time
         total_time += elapsed_time
-
     average_time = total_time / generation_count
-    # output_image_path = f"/home/ubuntu/Resultsbin/output_{os.getpid()}_{i}.jpg"
-    # im3.save(output_image_path)
-    # Check if running on CPU 0-3 before writing to the file
-
-    for i in range(len(list)):
-        output_image_path = f"./results/output_{os.getpid()}_{i}.jpg"
-        list[i].save(output_image_path)
     return {"AverageExecutionTime": average_time}
 
 
@@ -110,14 +128,14 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             st = time.time()
             result = imgrot()
             et = time.time()
-            Totalcnt += 1
+            Totalcnt += 10
+            #print(et-st,flush=True)
             #print("processing",flush=True)
-            if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
-                lctime = time.time()
-                Totalprev = Totalcnt
-            # logger.info(
-            #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
+            #if et-lctime > 10:
+            #    logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
+            #    lctime = time.time()
+            #    Totalprev = Totalcnt
+            logger.info(f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
 #The controller to tune worker and resource
 def controller(RedisDataClient,FuncName,ControlList,NewMask,CPUMASK,RunningProcessesDict):
@@ -163,15 +181,27 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
 
-    for timercnt in range(23):
-        NewMask = [0]*23
-        for index in range(timercnt+1):
-            NewMask[index] = 1
-        controller(RedisDataClient, FuncName, Control_Sign,
+    #for timercnt in range(1,23):#[1,4,8,12,16,20]:#range(1,23):#[1,4,8,12,16,20]:##[1,4,8,12,16,20]:#
+    #    NewMask = [0] * 23
+    #    for index in range(timercnt):
+    #        NewMask[index] = 1
+
+    # for timercnt in range(23):
+    NewMask = [0]*23
+    for index in range(18,20):
+        NewMask[index] = 1
+    #NewMask[5] = 1
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:1={cpu_list}'], check=True)
+    #NewMask = [0]*23
+    #NewMask[8] = 1
+    controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
         #print(NewMask, flush=True)
         #print(CPUMASK, flush=True)
-        time.sleep(40)
+    time.sleep(40)
+    #time.sleep(1000000)
+    time.sleep(50)
     Listening = True
     while Listening:
         #Add shutdown here.

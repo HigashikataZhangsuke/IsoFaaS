@@ -1,15 +1,20 @@
 import time
 import cv2
+import random
+import os
+
+os.sched_setaffinity(0, {6})
+
 def alu():
     # It's OK since we think run locally and also use same data.
-    video_list = [f for f in os.listdir(f'./vid') if f.endswith('.mp4')]
+    video_list = [f for f in os.listdir(f'/home/ubuntu/IsoFaaS/Profiling/vid') if f.endswith('.mp4')]
     generation_count = 1
 
     total_time = 0.0
 
     for i in range(generation_count):
         video_name = video_list[i]
-        video_path = os.path.join(f'./vid', video_name)
+        video_path = os.path.join(f'/home/ubuntu/IsoFaaS/Profiling/vid', video_name)
 
         st = time.time()
         video = cv2.VideoCapture(video_path)
@@ -17,7 +22,7 @@ def alu():
         width = int(video.get(3))
         height = int(video.get(4))
         fourcc = cv2.VideoWriter_fourcc(*'MPEG')
-        out = cv2.VideoWriter('./results/output_' + str(os.getpid()) + str(random.randint(1, 1000)) + '.avi', fourcc,
+        out = cv2.VideoWriter('/home/ubuntu/IsoFaaS/Profiling/results/output_' + str(os.getpid()) + str(random.randint(1, 1000)) + '.avi', fourcc,
                               120.0, (width, height))
 
         # 用于存储所有灰度帧的列表
@@ -46,15 +51,6 @@ def alu():
     average_time = total_time / generation_count
     return average_time
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
-
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()

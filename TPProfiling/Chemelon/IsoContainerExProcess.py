@@ -18,6 +18,7 @@ import json
 import threading
 import six
 import json
+import subprocess
 from chameleon import PageTemplate
 #Class
 class ControlSign:
@@ -100,11 +101,17 @@ def workerprocess(RedisDataClient,FuncName,Signal,AffinityId,number):
             result = che()
             et = time.time()
             Totalcnt += 1
-            #print("processing",flush=True)
-            if et-lctime > 10:
-                logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
+            if et-lctime > 5:
+                logger.info("PKTP of CPU num" +" "+ str(number) + " in past around 5 sec is"  + " "+str((Totalcnt-Totalprev)/(et-lctime)) +" " + "The latest standalone latency is " + str(et-st))
                 lctime = time.time()
                 Totalprev = Totalcnt
+            #print(et-st,flush=True)
+            #Totalcnt += 1
+            #print("processing",flush=True)
+            #if et-lctime > 10:
+            #    logger.info("PKTP of CPU num in past around 10 sec is" + str(number) + " "+str((Totalcnt-Totalprev)/(et-lctime)))
+            #    lctime = time.time()
+            #    Totalprev = Totalcnt
             # logger.info(
             #     f"P+ {os.getpid()}+ process request number + {Totalcnt} + recived at {arrtime} + starts at + {st} + end at {et} + duration {et - st} + E-E latency {et - arrtime}")
 
@@ -151,16 +158,30 @@ def listener(RedisDataClient,FuncName,RedisMessageClient,CPUMASK,RunningProcesse
     Control_Sign = []
     for i in range(max_worker):
         Control_Sign.append(ControlSign())
-
-    for timercnt in range(23):
+    #subprocess.run(['sudo', 'pqos', '-e', 'mba_max:1' + '=' + '11776', '-r'], check=True)
+    #NewMask = [0]*23
+    #for i in range(1):
+    #    NewMask[i] = 1
+    #print(NewMask, flush=True)
+    #controller(RedisDataClient, FuncName, Control_Sign,NewMask, CPUMASK,RunningProcessesDict,)
+    for timercnt in [1,4,8,12,16,20]:
+    #for timercnt in range(23):
         NewMask = [0]*23
-        for index in range(timercnt+1):
+        for index in range(timercnt):
             NewMask[index] = 1
+    #    print(NewMask,flush=True)
+    #NewMask[5] = 1
+        #cpu_list = ','.join(str(cpu) for cpu, val in enumerate(NewMask) if val == 1)
+        #subprocess.run(['sudo', 'pqos', '-a', f'core:1={cpu_list}'], check=True)
+    #NewMask = [0]*23
+    #NewMask[8] = 1
         controller(RedisDataClient, FuncName, Control_Sign,
                     NewMask, CPUMASK,RunningProcessesDict,)
-        #print(NewMask, flush=True)
+        print(sum(NewMask), flush=True)
         #print(CPUMASK, flush=True)
-        time.sleep(40)
+        time.sleep(45)
+    #time.sleep(1000000)
+    time.sleep(50)
     Listening = True
     while Listening:
         #Add shutdown here.
@@ -199,7 +220,7 @@ if __name__ == '__main__':
     manager = mp.Manager()
     RedisDataClient = redis.Redis(host=FuncName+'datasvc.default.svc.cluster.local', port=6379, db=0,decode_responses=True)
     #This shall be the same
-    RedisMessageClient = redis.Redis(host='invokermessagesvc.default.svc.cluster.local', port=6379,decode_responses=True)
+    RedisMessageClient = redis.Redis(host='invokermessagesvc.default.svc.cluster.local', port=6379, decode_responses=True)
     #Different as different IsoContainer goes, need to change here.
     LocalCPUMASK = [0]*23
     #LocalCPUMASK[3] = 1

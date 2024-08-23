@@ -1,4 +1,5 @@
 import time
+os.sched_setaffinity(0, {6})
 def alu():
     #It's OK since we think run locally and also use same data.
     a = 506678
@@ -15,15 +16,6 @@ def alu():
             temp = a / b
     return temp
 
-listoftheresult = []
-for i in range(5):
-    st = time.time()
-    result = alu()
-    et = time.time()
-    if i>1:
-        listoftheresult.append(et-st)
-
-print(sum(listoftheresult)/len(listoftheresult))
 print("Now ready for BW Tests")
 while True:
     alu()
